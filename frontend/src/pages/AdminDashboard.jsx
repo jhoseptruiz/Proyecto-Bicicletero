@@ -139,7 +139,7 @@ function AdminDashboard() {
           <select value = {guardiaId} onChange={(e) => setGuardiaId(e.target.value)}>
             <option value = "">(Ninguno)</option>
             {guardias.map(guardias =>(
-              <option key= {guardias.id} value= {guardias.id} >{guardias.nombre} {guardias.apellido}</option>
+              <option key= {guardias.rut} value= {guardias.rut} >{guardias.nombre} {guardias.apellido}</option>
             ))}
           </select>
         </div>
@@ -147,7 +147,7 @@ function AdminDashboard() {
       </form >
       <hr />
 
-      <h3>Biciclteros existentes</h3>
+      <h3>Bicicleteros existentes</h3>
       <table border= "1" style={{width:'100%'}}>
         <thead>
           <tr>

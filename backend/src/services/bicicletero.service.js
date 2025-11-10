@@ -15,7 +15,7 @@ export async function CrearBicicletero(data) {
     const {ubicacion, capacidad, estado, horaApertura, horaCierre, guardiaId}= data;
     let guardia = null;
     if(guardiaId){
-        guardia = await userRepo.findOneBy({id: guardiaId, role:"guardia"});
+        guardia = await userRepo.findOneBy({rut: guardiaId, role:"guardia"});
         if(!guardia){
             throw new Error("El guardia seleccionado no es valido");
         }

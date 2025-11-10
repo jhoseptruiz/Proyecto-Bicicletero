@@ -1,5 +1,6 @@
 import apiClient from './api.js';
 
+// --- Petición de Login ---
 export const login = async (email, password) => {
   try {
     const response = await apiClient.post('/auth/login', { email, password }); 
@@ -9,9 +10,10 @@ export const login = async (email, password) => {
   }
 };
 
-export const register = async (nombre, apellido, email, password) => {
+// --- Petición de Registro ---
+export const register = async (nombre, apellido, rut, email, password) => {
   try {
-    const response = await apiClient.post('/auth/register', {nombre, apellido, email, password });
+    const response = await apiClient.post('/auth/register', {nombre, apellido, rut, email, password });
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || 'Error en el registro');
