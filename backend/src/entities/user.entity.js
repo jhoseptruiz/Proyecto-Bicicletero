@@ -1,4 +1,5 @@
 import { EntitySchema } from "typeorm";
+import { Bicicletero } from "./bicicletero.entity.js";
 
 export const User = new EntitySchema({
   name: "User",
@@ -38,7 +39,7 @@ export const User = new EntitySchema({
     role: {
       type: "varchar",
       enum: ["alumno", "guardia", "admin"],
-      default: "alumno",
+      default: "admin",
       nullable: false,
     },
 
@@ -51,6 +52,14 @@ export const User = new EntitySchema({
       type: "timestamp",
       updateDate: true,
       default: () => "CURRENT_TIMESTAMP",
+    },
+  },
+  //guardia puede tener varios bicicleteros asignados
+  relations:{
+    BicicleterosAsignados:{
+      type: "one-to-many",
+      target: "Bicicletero",
+      inverseSide: "guardiaAsignado",
     },
   },
 });

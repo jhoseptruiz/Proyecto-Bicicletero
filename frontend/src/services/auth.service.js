@@ -1,15 +1,9 @@
-import axios from 'axios';
-
-const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_BASE_URL,
-});
+import apiClient from './api.js';
 
 export const login = async (email, password) => {
   try {
-    const response = await apiClient.post('/auth/login', { email, password });
-    
+    const response = await apiClient.post('/auth/login', { email, password }); 
     return response.data;
-
   } catch (error) {
     throw new Error(error.response?.data?.message || 'Error en el login');
   }

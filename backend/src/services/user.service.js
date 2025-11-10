@@ -20,3 +20,10 @@ export async function createUser(data) {
 export async function findUserByEmail(email) {
   return await userRepository.findOneBy({ email });
 }
+
+export async function EncontrarGuardias(){
+  return await userRepository.find({
+    where: {role:"guardia"},
+    select: ["id","nombre","apellido","email"]
+  });
+}
