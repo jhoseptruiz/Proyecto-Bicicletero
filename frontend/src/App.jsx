@@ -1,4 +1,4 @@
-// frontend/src/App.jsx (¡Corregido!)
+// frontend/src/App.jsx (¡Modificado!)
 
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
@@ -6,9 +6,12 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 // Importamos el guardia
 import ProtectedRoute from './components/ProtectedRoute'; 
 
-// Importamos todas las páginas
-import LoginPage from './pages/LoginPage';
-import PaginaRegistro from './pages/PaginaRegistro';
+// --- Importaciones de Páginas actualizadas ---
+import AuthPage from './pages/AuthPage'; // ¡NUEVO!
+// Ya no necesitamos LoginPage ni PaginaRegistro
+// import LoginPage from './pages/LoginPage';
+// import PaginaRegistro from './pages/PaginaRegistro';
+        
 import AdminDashboard from './pages/AdminDashboard';
 import GuardiaPanel from './pages/GuardiaPanel';
 import AlumnoHome from './pages/AlumnoHome';
@@ -17,17 +20,20 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* --- RUTAS PÚBLICAS (Sin guardia) --- */}
-        <Route path="/" element={<Navigate to="/login" />} />
-        <Route path="/login" element={<LoginPage />} />
-
-        <Route path= "/register" element={<PaginaRegistro/>}/>
+        {/* --- RUTAS PÚBLICAS (Ahora unificadas) --- */}
         
-        {/* --- RUTAS PROTEGIDAS (Ahora EXCLUSIVAS) --- */}
+        {/* La ruta raíz redirige a la página de autenticación */}
+        <Route path="/" element={<Navigate to="/auth" />} />
+        
+        {/* La nueva página de autenticación que contiene Login y Registro */}
+        <Route path="/auth" element={<AuthPage />} />
 
-        {/* Ruta de Administrador:
-            Solo los roles ['admin'] pueden entrar.
-        */}
+        {/* Redirección por si alguien entra a las rutas viejas */}
+        <Route path="/login" element={<Navigate to="/auth" />} />
+        <Route path="/register" element={<Navigate to="/auth" />} />
+        
+        {/* --- RUTAS PROTEGIDAS (Siguen igual) --- */}
+
         <Route 
           path="/admin" 
           element={
@@ -37,10 +43,6 @@ function App() {
           } 
         />
         
-        {/* Ruta de Guardia:
-            Solo los roles ['guardia'] pueden entrar.
-            (Podríamos añadir 'admin' si queremos que el admin también vea esto)
-        */}
         <Route 
           path="/guardia" 
           element={
@@ -50,10 +52,6 @@ function App() {
           } 
         />
 
-        {/* Ruta de Alumno:
-            ¡AQUÍ ESTÁ EL CAMBIO!
-            Solo los roles ['alumno'] pueden entrar.
-        */}
         <Route 
           path="/alumno" 
           element={
