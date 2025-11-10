@@ -34,6 +34,12 @@ export async function findUserByEmail(email) {
   return await userRepository.findOneBy({ email });
 }
 
+export async function EncontrarGuardias(){
+  return await userRepository.find({
+    where: {role:"guardia"},
+    select: ["rut","nombre","apellido","email"]
+  });
+}
 // --- Servicio para encontrar por RUT ---
 export async function findUserByRut(rut) {
   return await userRepository.findOneBy({ rut });
