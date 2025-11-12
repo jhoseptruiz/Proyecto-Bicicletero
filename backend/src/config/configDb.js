@@ -9,7 +9,7 @@ import { Bicicleta } from "../entities/bicicleta.entity.js";
 export const AppDataSource = new DataSource({
   type: "postgres",
   host: `${DB_HOST}`,
-  port: DB_PORT,
+  port: `${DB_PORT}`,
   username: `${DB_USERNAME}`,
   password: `${DB_PASSWORD}`,
   database: `${DATABASE}`,
