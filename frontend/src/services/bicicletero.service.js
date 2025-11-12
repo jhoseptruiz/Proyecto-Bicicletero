@@ -17,3 +17,12 @@ export const CrearBicicletero = async(data) =>{
         throw new Error(error.response?.data?.message || 'Error al crear bicicletero');
     }
 };
+
+export const ActualizarBicicletero = async(id, data) =>{
+    try{
+        const response = await apiClient.put(`/bicicleteros/${id}`, data);
+        return response.data;
+    } catch (error){
+        throw new Error(error.response?.data?.message || 'Error al actualizar bicicletero');
+    }
+};
