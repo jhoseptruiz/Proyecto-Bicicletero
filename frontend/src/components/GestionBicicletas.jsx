@@ -1,0 +1,202 @@
+import React, { useState, useEffect } from 'react';
+import { getMisBicicletas, crearBicicleta, updateBicicleta, deleteBicicleta } from '../services/bicicleta.service.js';
+import './GestionBicicletas.css';
+
+const API_BASE_URL = import.meta.env.VITE_BASE_URL.replace('/api', '');
+
+function GestionBicicletas() {
+  const [bicicletas, setBicicletas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Estados para el formulario de creación
+  const [marca, setMarca] = useState('');
+  const [fotoFile, setFotoFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [formError, setFormError] = useState('');
+  
+  // Estados para el modal de edición
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingBike, setEditingBike] = useState(null);
+  const [editMarca, setEditMarca] = useState('');
+  const [editFotoFile, setEditFotoFile] = useState(null);
+  const [editPreviewUrl, setEditPreviewUrl] = useState('');
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await getMisBicicletas();
+      setBicicletas(data.data || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- Lógica de Creación ---
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFotoFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    if (!marca || !fotoFile) {
+      setFormError('La marca y la foto son obligatorias.');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('marca', marca);
+    formData.append('foto', fotoFile);
+    try {
+      await crearBicicleta(formData);
+      setMarca('');
+      setFotoFile(null);
+      setPreviewUrl('');
+      if(document.getElementById('fotoInput')) document.getElementById('fotoInput').value = null;
+      fetchData(); 
+    } catch (err) {
+      setFormError(err.message);
+    }
+  };
+  
+  // --- Lógica de Eliminación ---
+  const handleDelete = async (bicicletaId) => {
+    if (window.confirm("¿Estás seguro de que quieres eliminar esta bicicleta? Esta acción no se puede deshacer.")) {
+      try {
+        await deleteBicicleta(bicicletaId);
+        fetchData(); // Recargar la lista
+      } catch (err) {
+        alert("Error al eliminar la bicicleta: " + err.message);
+      }
+    }
+  };
+  
+  // --- Lógica de Edición ---
+  const openEditModal = (bicicleta) => {
+    setEditingBike(bicicleta);
+    setEditMarca(bicicleta.marca);
+    setEditPreviewUrl(`${API_BASE_URL}/${bicicleta.fotoUrl}`);
+    setIsEditModalOpen(true);
+  };
+  
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingBike(null);
+    setEditMarca('');
+    setEditFotoFile(null);
+    setEditPreviewUrl('');
+  };
+
+  const handleEditFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEditFotoFile(file);
+      setEditPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+  
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('marca', editMarca);
+    if (editFotoFile) {
+      formData.append('foto', editFotoFile);
+    }
+    
+    try {
+      await updateBicicleta(editingBike.id, formData);
+      closeEditModal();
+      fetchData();
+    } catch (err) {
+      alert("Error al actualizar: " + err.message);
+    }
+  };
+
+  if (loading) return <p>Cargando bicicletas...</p>;
+  if (error) return <p style={{ color: 'red' }}>Error al cargar: {error}</p>;
+
+  return (
+    <div style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px' }}>
+      <h2>Administrar Bicicletas</h2>
+      <p>Administra las bicicletas de tu perfil.</p>
+      <hr style={{ margin: '20px 0' }} />
+      <h3>Registrar Nueva Bicicleta</h3>
+      <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: '10px' }}>
+          <label>Marca:</label>
+          <input type="text" value={marca} onChange={(e) => setMarca(e.target.value)} required />
+        </div>
+        <div style={{ marginBottom: '10px' }}>
+          <label>Foto de la Bicicleta:</label>
+          <input id="fotoInput" type="file" accept="image/*" onChange={handleFileChange} required />
+        </div>
+        {previewUrl && <img src={previewUrl} alt="Vista previa" style={{ width: '150px', height: '150px', objectFit: 'cover', marginBottom: '10px' }} />}
+        <button type="submit">Agregar Bicicleta</button>
+        {formError && <p style={{ color: 'red' }}>{formError}</p>}
+      </form>
+      <hr style={{ margin: '20px 0' }} />
+      <h3>Bicicletas Registradas</h3>
+      {bicicletas.length === 0 ? <p>No tienes bicicletas registradas.</p> : (
+        <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ padding: '8px', width: '100px' }}>Foto</th>
+              <th style={{ padding: '8px' }}>Marca</th>
+              <th style={{ padding: '8px' }}>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bicicletas.map(b => (
+              <tr key={b.id}>
+                <td style={{ padding: '8px', textAlign: 'center' }}>
+                  {b.fotoUrl && <img src={`${API_BASE_URL}/${b.fotoUrl}`} alt={b.marca} style={{ width: '80px', height: '80px', objectFit: 'cover' }} />}
+                </td>
+                <td style={{ padding: '8px' }}>{b.marca}</td>
+                <td style={{ padding: '8px', textAlign: 'center' }}>
+                  <button onClick={() => openEditModal(b)}>Editar</button>
+                  <button onClick={() => handleDelete(b.id)} style={{ marginLeft: '5px' }}>Eliminar</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {isEditModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>Editar Bicicleta</h2>
+            <form onSubmit={handleUpdate}>
+              <div style={{ marginBottom: '10px' }}>
+                <label>Marca:</label>
+                <input type="text" value={editMarca} onChange={(e) => setEditMarca(e.target.value)} required />
+              </div>
+              <div style={{ marginBottom: '10px' }}>
+                <label>Cambiar Foto (Opcional):</label>
+                <input type="file" accept="image/*" onChange={handleEditFileChange} />
+              </div>
+              {editPreviewUrl && <img src={editPreviewUrl} alt="Vista previa" style={{ width: '150px', height: '150px', objectFit: 'cover', marginBottom: '10px' }} />}
+              <div className="modal-actions">
+                <button type="submit">Guardar Cambios</button>
+                <button type="button" onClick={closeEditModal}>Cancelar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default GestionBicicletas;

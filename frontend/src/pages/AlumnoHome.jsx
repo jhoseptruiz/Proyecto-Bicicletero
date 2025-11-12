@@ -1,5 +1,7 @@
+// frontend/src/pages/AlumnoHome.jsx
+
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 function AlumnoHome() {
   const navigate = useNavigate();
@@ -14,6 +16,12 @@ function AlumnoHome() {
     <div>
       <button onClick={handleLogout} style={{float:'right'}}>Cerrar Sesión</button>
       <h1>Plataforma de Alumno</h1>
+      
+      <Link to="/perfil">
+        <button>Mi Perfil</button>
+      </Link>
+      <hr/>
+
       <p>Bienvenido, Alumno. Aquí verás el mapa de bicicleteros.</p>
     </div>
   );
