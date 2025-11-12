@@ -2,6 +2,7 @@ import { Router } from "express";
 import authRoutes from "./auth.routes.js";
 import bicicleteroRoutes from "./bicicletero.routes.js";
 import userRoutes from "./user.routes.js";
+import guardiaRoutes from "./guardia.routes.js";
 
 export function routerApi(app) {
   const router = Router();
@@ -10,4 +11,5 @@ export function routerApi(app) {
   router.use("/auth", authRoutes);
   router.use("/bicicleteros", bicicleteroRoutes);
   router.use("/users", userRoutes);
+  router.use("/guardia", guardiaRoutes);
 }
