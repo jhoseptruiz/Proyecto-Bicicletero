@@ -1,39 +1,27 @@
-// frontend/src/App.jsx (¡Modificado!)
+// frontend/src/App.jsx
 
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-// Importamos el guardia
 import ProtectedRoute from './components/ProtectedRoute'; 
 
-// --- Importaciones de Páginas actualizadas ---
-import AuthPage from './pages/AuthPage'; // ¡NUEVO!
-// Ya no necesitamos LoginPage ni PaginaRegistro
-// import LoginPage from './pages/LoginPage';
-// import PaginaRegistro from './pages/PaginaRegistro';
-        
+import AuthPage from './pages/AuthPage'; 
 import AdminDashboard from './pages/AdminDashboard';
 import GuardiaPanel from './pages/GuardiaPanel';
 import AlumnoHome from './pages/AlumnoHome';
+import PerfilPage from './pages/PerfilPage.jsx';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* --- RUTAS PÚBLICAS (Ahora unificadas) --- */}
-        
-        {/* La ruta raíz redirige a la página de autenticación */}
+        {/* --- RUTAS PÚBLICAS --- */}
         <Route path="/" element={<Navigate to="/auth" />} />
-        
-        {/* La nueva página de autenticación que contiene Login y Registro */}
         <Route path="/auth" element={<AuthPage />} />
-
-        {/* Redirección por si alguien entra a las rutas viejas */}
         <Route path="/login" element={<Navigate to="/auth" />} />
         <Route path="/register" element={<Navigate to="/auth" />} />
         
-        {/* --- RUTAS PROTEGIDAS (Siguen igual) --- */}
-
+        {/* --- RUTAS PROTEGIDAS (Admin y Guardia) --- */}
         <Route 
           path="/admin" 
           element={
@@ -42,7 +30,6 @@ function App() {
             </ProtectedRoute>
           } 
         />
-        
         <Route 
           path="/guardia" 
           element={
@@ -52,11 +39,20 @@ function App() {
           } 
         />
 
+        {/* --- RUTAS PROTEGIDAS (Alumno) --- */}
         <Route 
           path="/alumno" 
           element={
             <ProtectedRoute allowedRoles={['alumno']}>
               <AlumnoHome />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/perfil"
+          element={
+            <ProtectedRoute allowedRoles={['alumno']}>
+              <PerfilPage />
             </ProtectedRoute>
           } 
         />
