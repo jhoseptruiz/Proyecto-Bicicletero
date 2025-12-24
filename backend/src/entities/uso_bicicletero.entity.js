@@ -19,7 +19,7 @@ export const UsoBicicletero = new EntitySchema({
         },
         estado: {
             type: "enum",
-            enum: ["ESPERANDO_CONFIRMACION", "APROBADO", "RECHAZADO", "FINALIZADO"],
+            enum: ["ESPERANDO_CONFIRMACION", "APROBADO", "RECHAZADO", "FINALIZADO", "SOLICITANDO_RETIRO"],
             default: "ESPERANDO_CONFIRMACION",
         },
         casilleroAsignado: {
