@@ -26,9 +26,7 @@ function normalizeRut(rut) {
 }
 
 
-// ----------------------------------------
 // --- Controladores de Autenticación (Exportados) ---
-// ----------------------------------------
 
 export async function login(req, res) {
   try {
@@ -86,7 +84,7 @@ export async function register(req, res) {
 
   } catch (error) {
     
-    // 5. Manejo de errores de duplicidad (¡MEJORADO!)
+    // 5. Manejo de errores de duplicidad
     if (error.code === '23505') { // '23505' = Unique Violation
       
       const errorDetail = error.detail || "";

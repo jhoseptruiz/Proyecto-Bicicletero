@@ -24,7 +24,7 @@ export async function putBicicleteros(req, res){
         const {id} = req.params;
         const data = req.body;
         const bicicletero = await ActualizarBicicletero(id, data);
-        handleSuccess(res, 200, "Bicicltero actualizado exitosamente", bicicletero);
+        handleSuccess(res, 200, "Bicicletero actualizado exitosamente", bicicletero);
     } catch(error){
         if(error.message.includes("No encontrado")){
             return handleErrorClient(res, 404, error.message);
