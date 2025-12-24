@@ -1,15 +1,6 @@
 /**
- * Calcula la distancia en metros entre dos coordenadas geográficas.
- * Utiliza la fórmula de Haversine.
- * 
- * Esta fórmula es estándar para medir distancias en una esfera (la Tierra).
- * Se usa para verificar si el alumno está físicamente cerca del bicicletero (ej: < 50 metros).
- * 
- * @param {number} lat1 Latitud punto 1 (Usuario)
- * @param {number} lon1 Longitud punto 1 (Usuario)
- * @param {number} lat2 Latitud punto 2 (Bicicletero)
- * @param {number} lon2 Longitud punto 2 (Bicicletero)
- * @returns {number} Distancia en metros
+ * Calcula la distancia en metros entre usuario y bicicletero (Fórmula Haversine).
+ * Se usa para validar que el alumno esté físicamente cerca.
  */
 export function calcularDistancia(lat1, lon1, lat2, lon2) {
     // Radio de la tierra en metros

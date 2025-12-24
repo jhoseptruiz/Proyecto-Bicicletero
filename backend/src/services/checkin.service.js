@@ -15,14 +15,8 @@ const bicicletaRepo = AppDataSource.getRepository(Bicicleta);
 const MAX_DISTANCIA_METROS = 50;
 
 /**
- * Procesa la solicitud de ingreso escaneada por el alumno.
- * 
- * @param {string} rutAlumno - RUT del usuario logueado.
- * @param {string} codigoQr - Contenido del QR escaneado.
- * @param {number} lat - Latitud GPS del celular.
- * @param {number} lng - Longitud GPS del celular.
- * @param {number} bicicletaId - Bicicleta que quiere ingresar.
- * @returns {Promise<object>} - El registro de Uso creado.
+ * Valida y crea una solicitud de ingreso (Estado: ESPERANDO_CONFIRMACION).
+ * Revisa: Existencia user/bici, ubicación GPS, QR válido, horario y capacidad.
  */
 export async function crearSolicitudIngreso(rutAlumno, codigoQr, lat, lng, bicicletaId) {
     // 1. Validar Usuario y Bicicleta
@@ -89,22 +83,21 @@ export async function crearSolicitudIngreso(rutAlumno, codigoQr, lat, lng, bicic
         throw new Error("El bicicletero está lleno. No hay cupos disponibles.");
     }
 
-    // 6. Crear Solicitud (Estado: ESPERANDO_CONFIRMACION)
+    // 6. Crear Solicitud
     const nuevaSolicitud = usoRepo.create({
         usuario: usuario,
         bicicleta: bicicleta,
         bicicletero: bicicletero,
         fechaIngreso: new Date(),
         estado: "ESPERANDO_CONFIRMACION",
-        // Casillero asignado es null hasta que el guardia lo asigne
     });
 
     return await usoRepo.save(nuevaSolicitud);
 }
 
 /**
- * Procesa la solicitud de SALIDA escaneada por el alumno.
- * Cambia el estado a SOLICITANDO_RETIRO para que el guardia lo vea.
+ * Genera la solicitud de salida. 
+ * Cambia el estado a SOLICITANDO_RETIRO para alertar al guardia.
  */
 export async function crearSolicitudSalida(rutAlumno, codigoQr, lat, lng, bicicletaId) {
     // 1. Validar Usuario y que tenga la bici adentro
@@ -136,6 +129,30 @@ export async function crearSolicitudSalida(rutAlumno, codigoQr, lat, lng, bicicl
     // 4. Actualizar Estado
     usoActivo.estado = "SOLICITANDO_RETIRO";
     return await usoRepo.save(usoActivo);
+}
+
+
+
+/**
+ * Obtiene el estado de la solicitud activa de un usuario (si tiene alguna).
+ */
+export async function obtenerEstadoSolicitud(rutAlumno) {
+    // Buscar la última sin fechaSalida
+    const uso = await usoRepo.findOne({
+        where: { usuario: { rut: rutAlumno }, fechaSalida: null },
+        relations: ["bicicletero", "bicicleta"],
+        order: { fechaIngreso: "DESC" }
+    });
+
+    if (!uso) return null; // No tiene solicitud activa
+
+    return {
+        id: uso.id,
+        estado: uso.estado,
+        bicicletero: uso.bicicletero.ubicacion,
+        casillero: uso.casilleroAsignado,
+        horaIngreso: uso.fechaIngreso,
+    };
 }
 
 /**
