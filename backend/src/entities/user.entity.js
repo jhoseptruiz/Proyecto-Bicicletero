@@ -7,27 +7,27 @@ export const User = new EntitySchema({
   name: "User",
   tableName: "users",
   columns: {
-    
+
     // --- Clave Primaria ---
     rut: {
       primary: true,
       type: "varchar",
-      length: 12, 
+      length: 12,
       nullable: false,
     },
 
     // --- Datos Personales ---
-    nombre:{
-      type:"varchar",
-      length:100,
+    nombre: {
+      type: "varchar",
+      length: 100,
       nullable: false,
     },
-    apellido:{
-      type:"varchar",
-      length:100,
+    apellido: {
+      type: "varchar",
+      length: 100,
       nullable: false
     },
-    
+
     // --- Credenciales y Rol ---
     email: {
       type: "varchar",
@@ -59,8 +59,8 @@ export const User = new EntitySchema({
     },
   },
   //guardia puede tener varios bicicleteros asignados
-  relations:{
-    BicicleterosAsignados:{
+  relations: {
+    BicicleterosAsignados: {
       type: "one-to-many",
       target: "Bicicletero",
       inverseSide: "guardiaAsignado",
@@ -70,6 +70,11 @@ export const User = new EntitySchema({
       type: "one-to-many",
       target: "Bicicleta",
       inverseSide: "propietario",
+    },
+    usos: {
+      type: "one-to-many",
+      target: "UsoBicicletero",
+      inverseSide: "usuario",
     },
   },
 });
