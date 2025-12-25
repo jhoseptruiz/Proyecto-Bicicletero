@@ -1,5 +1,6 @@
 # Dependencias de Node
 node_modules/
+uploads/
 
 # Archivo de variables de entorno (¡Contiene secretos!)
 .env

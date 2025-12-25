@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {useNavigate} from 'react-router-dom';
-import { getBicicleteros, CrearBicicletero } from '../services/bicicletero.service.js';
+import { getBicicleteros, CrearBicicletero, ActualizarBicicletero } from '../services/bicicletero.service.js';
 import { getGuardias } from '../services/user.service.js';
 
 function AdminDashboard() {
@@ -10,6 +10,7 @@ function AdminDashboard() {
   const [guardias, setGuardias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [editarId, setEditarId] = useState('');
 
   //formulario
   const [ubicacion, setUbicacion] = useState('');
@@ -41,6 +42,28 @@ function AdminDashboard() {
       setLoading(false);
     }
   };
+  
+  //limpiar formulario
+  const resetFormulario = () =>{
+    setEditarId(null);
+    setUbicacion('');
+    setCapacidad(15);
+    setEstado('operativo');
+    setHoraApertura('07:00');
+    setHoraCierre('21:00');
+    setGuardiaId('');
+    setError('');
+  };
+
+  const handleEditClick = (bicicletero) =>{
+    setEditarId(bicicletero.id);
+    setUbicacion(bicicletero.ubicacion);
+    setCapacidad(bicicletero.capacidad);
+    setEstado(bicicletero.estado);
+    setHoraApertura(bicicletero.horaApertura);
+    setHoraCierre(bicicletero.horaCierre);
+    setGuardiaId(bicicletero.guardiaAsignado ? bicicletero.guardiaAsignado.rut:'' );
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,16 +78,18 @@ function AdminDashboard() {
         guardiaId: guardiaId || null,
       };
 
-      await CrearBicicletero(newData);
-      alert('Bicicletero creado..');
+      if(editarId){
+        await ActualizarBicicletero(editarId, newData);
+        alert('Bicicletero actualizado');
+      }else{
+        await CrearBicicletero(newData);
+        alert('Bicicletero creado');
+      }
 
       //limpiar formulario y muestra lista
-      setUbicacion('');
-      setCapacidad(15);
-      setHoraApertura('07:00');
-      setHoraCierre('21:00');
-      setGuardiaId('');
+      resetFormulario();
       fetchData();
+
     } catch (err) {
       setError(err.message);
     }
@@ -143,7 +168,9 @@ function AdminDashboard() {
             ))}
           </select>
         </div>
-        <button type = "submit">Añadir bicicletero</button>
+
+        <button type = "submit">{editarId? 'Actualizar Bicicltero' : 'Añadir Bicicletero'}</button>
+        <button type= "button" onClick={resetFormulario} style={{marginLeft:'10px'}}>Cancelar Edicion</button>
       </form >
       <hr />
 
@@ -176,7 +203,7 @@ function AdminDashboard() {
                 `${b.guardiaAsignado.nombre} ${b.guardiaAsignado.apellido}` : 
                 '(Sin asignar)'}</td>
                 <td>
-                  <button>Editar</button>
+                  <button onClick={() => handleEditClick(b)}>Editar</button>
                   <button>Eliminar</button>
                 </td>
               </tr>

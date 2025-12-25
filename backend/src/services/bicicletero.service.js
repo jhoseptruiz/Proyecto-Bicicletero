@@ -34,4 +34,32 @@ export async function CrearBicicletero(data) {
 }
 
 //updateBicicletero
+export async function ActualizarBicicletero(id,data){
+    //buscar el bicicletero
+    const bicicletero = await bicicleteroRepo.findOneBy({id: parseInt(id)});
+    if(!bicicletero){
+        throw new Error("Bicicletero no encontrado");
+    } 
+
+    //validar guardia (si cambia)
+    let guardia = null;
+    const {guardiaId, ...updateData} = data;
+
+    if(guardiaId){
+        guardia = await userRepo.findOneBy({rut: guardiaId, role:"guardia"});
+        if(!guardia){
+            throw new Error("El guardia seleccionado no es valido");
+        }
+        updateData.guardiaAsignado = guardia;
+    }else if (guardiaId === null || guardiaId ==="") {
+        updateData.guardiaAsignado= null;
+    }
+
+    //juntar datos
+    bicicleteroRepo.merge(bicicletero, updateData);
+    //guardar cambios
+    return await bicicleteroRepo.save(bicicletero);
+
+}
+
 //deleteBicicletero  
