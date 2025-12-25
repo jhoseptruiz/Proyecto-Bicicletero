@@ -4,10 +4,12 @@ import { getBicicleteros, CrearBicicletero, ActualizarBicicletero, deleteBicicle
 import { getGuardias, createGuardia, updateGuardia, deleteGuardia } from '../services/user.service.js';
 import Map, {Marker, NavigationControl} from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import './AdminDashboard.css';
 
 function AdminDashboard() {
   const navigate = useNavigate();
-
+  const [activeTab, setActiveTab] = useState('bicicleteros');
+  // --- Estado Datos ---
   const [bicicleteros, setBicicleteros] = useState([]);
   const [guardias, setGuardias] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +19,7 @@ function AdminDashboard() {
     latitude: -36.8222,
     zoom: 16
   });
+  // --- Estado Mapa ---
   const [marcaLocalizacion, setMarcaLocalizacion] = useState({lat: -36.8222, lng: -73.0134});
   const MAPBOX_TOKEN = "pk.eyJ1IjoibWlsZW5ja2FhIiwiYSI6ImNtamxxZDAzYjJxNTIza3B5OXZmcmk1cXMifQ.xW3QubyrM10uSbt08RlAPA";
 
@@ -231,198 +234,251 @@ function AdminDashboard() {
   if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
 
   return (
-    <div style={{ padding: '20px' }}>
-      <button onClick={handleLogout} style={{float:'right'}}>Cerrar sesión</button>
-      <h1>Panel de Administrador</h1>
+    <div className="admin-layout">
       
-      {/* SECCIÓN 1: GESTIÓN DE GUARDIAS */}
-      <section style={{ marginBottom: '40px', border: '1px solid #ccc', padding: '15px' }}>
-        <h2>Gestión de Guardias</h2>
-        <form onSubmit={handleGuardiaSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div>
-                <label>RUT:</label>
-                <input 
-                    type="text" 
-                    value={gRut} 
-                    onChange={e => setGRut(e.target.value)} 
-                    disabled={!!editarGuardiaRut} 
-                    required 
-                    placeholder="Ej: 12345678-9"
-                />
-            </div>
-            <div>
-                <label>Email:</label>
-                <input type="email" value={gEmail} onChange={e => setGEmail(e.target.value)} required />
-            </div>
-            <div>
-                <label>Nombre:</label>
-                <input type="text" value={gNombre} onChange={e => setGNombre(e.target.value)} required />
-            </div>
-            <div>
-                <label>Apellido:</label>
-                <input type="text" value={gApellido} onChange={e => setGApellido(e.target.value)} required />
-            </div>
-            <div>
-                <label>Contraseña:</label>
-                <input 
-                    type="password" 
-                    value={gPassword} 
-                    onChange={e => setGPassword(e.target.value)} 
-                    placeholder={editarGuardiaRut ? "(Dejar en blanco para mantener)" : "Requerida"}
-                />
-            </div>
-            <div style={{ gridColumn: 'span 2', marginTop: '10px' }}>
-                <button type="submit">{editarGuardiaRut ? 'Actualizar Guardia' : 'Crear Guardia'}</button>
-                <button type="button" onClick={resetFormularioGuardia} style={{ marginLeft: '10px' }}>Cancelar</button>
-            </div>
-        </form>
+      {/* --- SIDEBAR --- */}
+      <aside className="sidebar">
+        <div className="sidebar-header">
+            <h2>Admin Panel</h2>
+        </div>
+        
+        <nav className="sidebar-menu">
+            <button 
+                className={`menu-item ${activeTab === 'bicicleteros' ? 'active' : ''}`}
+                onClick={() => setActiveTab('bicicleteros')}
+            >
+                🚲 Bicicleteros
+            </button>
+            <button 
+                className={`menu-item ${activeTab === 'guardias' ? 'active' : ''}`}
+                onClick={() => setActiveTab('guardias')}
+            >
+                👮 Guardias
+            </button>
+        </nav>
 
-        <h4 style={{marginTop: '20px'}}>Lista de Guardias</h4>
-        <table border="1" style={{width:'100%', marginTop:'10px'}}>
-            <thead>
-                <tr>
-                    <th>RUT</th>
-                    <th>Nombre</th>
-                    <th>Apellido</th>
-                    <th>Email</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {guardias.length > 0 ? (
-                    guardias.map(g => (
-                        <tr key={g.rut}>
-                            <td>{g.rut}</td>
-                            <td>{g.nombre}</td>
-                            <td>{g.apellido}</td>
-                            <td>{g.email}</td>
-                            <td>
-                                <button onClick={() => handleEditGuardiaClick(g)}>Editar</button>
-                                <button onClick={() => handleDeleteGuardia(g.rut)} style={{marginLeft: '5px', backgroundColor: '#ffcccc'}}>Eliminar</button>
-                            </td>
+        <div className="sidebar-footer">
+            <button onClick={handleLogout} className="logout-btn">
+                Cerrar sesión
+            </button>
+        </div>
+      </aside>
+
+      {/* --- CONTENIDO PRINCIPAL --- */}
+      <main className="main-content">
+        
+        {/* VISTA: GESTIÓN DE GUARDIAS */}
+        {activeTab === 'guardias' && (
+            <div className="content-section fade-in">
+                <div className="section-header">
+                    <h2>Gestión de Guardias</h2>
+                </div>
+                
+                <div className="card-container">
+                    <form onSubmit={handleGuardiaSubmit} className="admin-form grid-2-col">
+                        <div>
+                            <label>RUT:</label>
+                            <input 
+                                type="text" 
+                                value={gRut} 
+                                onChange={e => setGRut(e.target.value)} 
+                                disabled={!!editarGuardiaRut} 
+                                required 
+                                placeholder="Ej: 12345678-9"
+                            />
+                        </div>
+                        <div>
+                            <label>Email:</label>
+                            <input type="email" value={gEmail} onChange={e => setGEmail(e.target.value)} required />
+                        </div>
+                        <div>
+                            <label>Nombre:</label>
+                            <input type="text" value={gNombre} onChange={e => setGNombre(e.target.value)} required />
+                        </div>
+                        <div>
+                            <label>Apellido:</label>
+                            <input type="text" value={gApellido} onChange={e => setGApellido(e.target.value)} required />
+                        </div>
+                        <div>
+                            <label>Contraseña:</label>
+                            <input 
+                                type="password" 
+                                value={gPassword} 
+                                onChange={e => setGPassword(e.target.value)} 
+                                placeholder={editarGuardiaRut ? "(Dejar en blanco para mantener)" : "Requerida"}
+                            />
+                        </div>
+                        <div className="full-width actions">
+                            <button type="submit" className="btn-primary">{editarGuardiaRut ? 'Actualizar Guardia' : 'Crear Guardia'}</button>
+                            <button type="button" onClick={resetFormularioGuardia} className="btn-secondary">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div className="table-container">
+                    <h3>Lista de Guardias</h3>
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>RUT</th>
+                                <th>Nombre</th>
+                                <th>Apellido</th>
+                                <th>Email</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {guardias.length > 0 ? (
+                                guardias.map(g => (
+                                    <tr key={g.rut}>
+                                        <td>{g.rut}</td>
+                                        <td>{g.nombre}</td>
+                                        <td>{g.apellido}</td>
+                                        <td>{g.email}</td>
+                                        <td>
+                                            <button className="btn-edit" onClick={() => handleEditGuardiaClick(g)}>Editar</button>
+                                            <button className="btn-delete" onClick={() => handleDeleteGuardia(g.rut)}>Eliminar</button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr><td colSpan="5">No hay guardias registrados</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
+
+        {/* VISTA: GESTIÓN DE BICICLETEROS */}
+        {activeTab === 'bicicleteros' && (
+            <div className="content-section fade-in">
+                <div className="section-header">
+                    <h2>Gestión de Bicicleteros</h2>
+                </div>
+
+                {/* Contenedor flexible para Mapa y Formulario lado a lado en pantallas grandes */}
+                <div className="bicicleteros-layout">
+                    
+                    {/* Columna Izquierda: Mapa */}
+                    <div className="map-column">
+                        <div className="map-wrapper">
+                            <Map 
+                            {...viewState}
+                            onMove= {evt => setViewState(evt.viewState)}
+                            style = {{width: '100%', height: '100%'}}
+                            mapStyle = "mapbox://styles/mapbox/streets-v11"
+                            mapboxAccessToken = {MAPBOX_TOKEN}
+                            onClick = {handleMapClick}>
+                            <NavigationControl/>
+
+                            <Marker 
+                                longitude={marcaLocalizacion.lng} 
+                                latitude={marcaLocalizacion.lat} 
+                                color="red" />
+                                {/* marcadores bicicleteros */}
+                                {bicicleteros.map(b => (
+                                b.latitud && b.longitud &&(
+                                    <Marker 
+                                    key={b.id}
+                                    longitude={parseFloat(b.longitud)}
+                                    latitude={parseFloat(b.latitud)}
+                                    color="blue" 
+                                    onClick = {(e) =>{
+                                        e.originalEvent.stopPropagation();
+                                        // Al hacer click en un marcador existente, cargamos sus datos en el form
+                                        handleEditClick(b);
+                                    }} />
+                                )
+                                ))}
+                            </Map>
+                            <p className="help-text">Haz clic en el mapa para definir una nueva ubicación.</p>
+                        </div>
+                    </div>
+
+                    {/* Columna Derecha: Formulario */}
+                    <div className="form-column">
+                        <form onSubmit={handleSubmit} className="admin-form card-container">
+                            <h3>{editarId ? 'Editar Bicicletero' : 'Nuevo Bicicletero'}</h3>
+                            <div>
+                                <label>Ubicación: </label>
+                                <input type="text" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} required />
+                            </div>
+                            <div>
+                                <label>Capacidad: </label>
+                                <input type="number" value={capacidad} onChange={(e) => setCapacidad(e.target.value)} required min={0} max={15} />
+                            </div>
+                            <div>
+                                <label>Estado: </label>
+                                <select value={estado} onChange={(e) => setEstado(e.target.value)}>
+                                    <option value="operativo">Operativo</option>
+                                    <option value="mantenimiento" >Mantenimiento</option>
+                                    <option value="Fuera_de_servicio">Fuera de servicio</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Horarios: </label>
+                                <div className="time-inputs">
+                                    <input type="time" value={horaApertura} onChange={(e) => setHoraApertura(e.target.value)} />
+                                    <span> a </span>
+                                    <input type="time" value={horaCierre} onChange={(e) => setHoraCierre(e.target.value)} />
+                                </div>
+                                <small>(Dejar vacios para 24/7)</small>
+                            </div>
+                            <div>
+                                <label>Guardia Asignado: </label>
+                                <select value={guardiaId} onChange={(e) => setGuardiaId(e.target.value)}>
+                                    <option value="">(Ninguno)</option>
+                                    {guardias.map(g => (
+                                    <option key={g.rut} value={g.rut}>{g.nombre} {g.apellido}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="actions">
+                                <button type="submit" className="btn-primary">{editarId ? 'Guardar Cambios' : 'Añadir'}</button>
+                                <button type="button" onClick={resetFormulario} className="btn-secondary">Cancelar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div className="table-container">
+                    <h3>Bicicleteros existentes</h3>
+                    <table className="data-table">
+                        <thead>
+                        <tr>
+                            <th>Ubicación</th>
+                            <th>Ocupados/Cap</th>
+                            <th>Estado</th>
+                            <th>Horarios</th>
+                            <th>Guardia</th>
+                            <th>Acciones</th>
                         </tr>
-                    ))
-                ) : (
-                    <tr><td colSpan="5">No hay guardias registrados</td></tr>
-                )}
-            </tbody>
-        </table>
-      </section>
-
-      <hr />
-
-      {/* SECCIÓN 2: GESTIÓN DE BICICLETEROS */}
-      <section>
-        <h2>Gestión de Bicicleteros</h2>
-        <form onSubmit={handleSubmit}>
-          <div style = {{ height: '400px', width: '100%', marginBottom: '20px' }}>
-            <Map 
-            {...viewState}
-            onMove= {evt => setViewState(evt.viewState)}
-            style = {{width: '100%', height: '100%'}}
-            mapStyle = "mapbox://styles/mapbox/streets-v11"
-            mapboxAccessToken = {MAPBOX_TOKEN}
-            onClick = {handleMapClick}>
-              <NavigationControl/>
-
-              <Marker 
-                longitude={marcaLocalizacion.lng} 
-                latitude={marcaLocalizacion.lat} 
-                color="red" />
-                {/* marcadores bicicleteros */}
-                {bicicleteros.map(b => (
-                  b.latitud && b.longitud &&(
-                    <Marker 
-                      key={b.id}
-                      longitude={parseFloat(b.longitud)}
-                      latitude={parseFloat(b.latitud)}
-                      color="blue" 
-                      onClick = {() =>{
-                        e.originalEvent.stopPropagation();
-                        alert(b.ubicacion)
-                      }} />
-                  )
-                ))}
-            </Map>
-          </div>
-
-            <div>
-              <label>Ubicación: </label>
-              <input type="text" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} required />
+                        </thead>
+                        <tbody>
+                        {bicicleteros.length > 0 ? (
+                            bicicleteros.map(b => (
+                            <tr key={b.id}>
+                                <td>{b.ubicacion}</td>
+                                <td>{b.bicicletasGuardadas} / {b.capacidad}</td>
+                                <td><span className={`badge ${b.estado}`}>{b.estado}</span></td>
+                                <td>{b.horaApertura && b.horaCierre ? `${b.horaApertura} - ${b.horaCierre}` : '24/7'}</td>
+                                <td>{b.guardiaAsignado ? `${b.guardiaAsignado.nombre}` : '-'}</td>
+                                <td>
+                                <button className="btn-edit" onClick={() => handleEditClick(b)}>Editar</button>
+                                <button className="btn-delete" onClick={() => handleDeleteBicicletero(b.id)}>Eliminar</button> 
+                                </td>
+                            </tr>
+                            )) 
+                        ) : (
+                            <tr><td colSpan="6">No hay bicicleteros registrados</td></tr>
+                        )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div>
-              <label>Capacidad: </label>
-              <input type="number" value={capacidad} onChange={(e) => setCapacidad(e.target.value)} required min={0} max={15} />
-            </div>
-            <div>
-              <label>Estado: </label>
-              <select value={estado} onChange={(e) => setEstado(e.target.value)}>
-                <option value="operativo">Operativo</option>
-                <option value="mantenimiento" >Mantenimiento</option>
-                <option value="Fuera_de_servicio">Fuera de servicio</option>
-              </select>
-            </div>
-            <div>
-              <label>Horarios: </label>
-              <input type="time" value={horaApertura} onChange={(e) => setHoraApertura(e.target.value)} />
-              <span> - </span>
-              <input type="time" value={horaCierre} onChange={(e) => setHoraCierre(e.target.value)} />
-              <small>(Dejar vacios para 24/7)</small>
-            </div>
-            <div>
-              <label>Guardia Asignado: </label>
-              <select value={guardiaId} onChange={(e) => setGuardiaId(e.target.value)}>
-                <option value="">(Ninguno)</option>
-                {guardias.map(g => (
-                  <option key={g.rut} value={g.rut}>{g.nombre} {g.apellido}</option>
-                ))}
-              </select>
-            </div>
-            <button type="submit" style={{marginTop:'10px'}}>{editarId ? 'Actualizar Bicicletero' : 'Añadir Bicicletero'}</button>
-            <button type="button" onClick={resetFormulario} style={{marginLeft:'10px'}}>Cancelar</button>
-        </form>
-
-        <h4 style={{marginTop: '20px'}}>Bicicleteros existentes</h4>
-        <table border="1" style={{width:'100%', marginTop:'10px'}}>
-            <thead>
-            <tr>
-                <th>ID</th>
-                <th>Ubicación</th>
-                <th>Latitud</th>
-                <th>Longitud</th>
-                <th>Ocupados</th>
-                <th>Capacidad</th>
-                <th>Estado</th>
-                <th>Horarios</th>
-                <th>Guardia</th>
-                <th>Acciones</th>
-            </tr>
-            </thead>
-            <tbody>
-            {bicicleteros.length > 0 ? (
-                bicicleteros.map(b => (
-                <tr key={b.id}>
-                    <td>{b.id}</td>
-                    <td>{b.ubicacion}</td>
-                    <td>{b.latitud || '-'} </td>
-                    <td>{b.longitud || '-'}</td>
-                    <td>{b.bicicletasGuardadas}</td>
-                    <td>{b.capacidad}</td>
-                    <td>{b.estado}</td>
-                    <td>{b.horaApertura && b.horaCierre ? `${b.horaApertura} - ${b.horaCierre}` : '24/7'}</td>
-                    <td>{b.guardiaAsignado ? `${b.guardiaAsignado.nombre} ${b.guardiaAsignado.apellido}` : '(Sin asignar)'}</td>
-                    <td>
-                    <button onClick={() => handleEditClick(b)}>Editar</button>
-                    <button onClick={() => handleDeleteBicicletero(b.id)} style={{marginLeft: '5px', backgroundColor: '#ffcccc'}}>Eliminar</button> 
-                    </td>
-                </tr>
-                )) 
-            ) : (
-                <tr><td colSpan="8">No hay bicicleteros registrados</td></tr>
-            )}
-            </tbody>
-        </table>
-      </section>
+        )}
+      </main>
     </div>
   );
 }
