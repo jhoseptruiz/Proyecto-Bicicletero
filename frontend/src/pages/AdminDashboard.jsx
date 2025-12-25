@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBicicleteros, CrearBicicletero, ActualizarBicicletero, deleteBicicletero } from '../services/bicicletero.service.js';
 import { getGuardias, createGuardia, updateGuardia, deleteGuardia } from '../services/user.service.js';
+import Map, {Marker, NavigationControl} from 'react-map-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -10,6 +12,23 @@ function AdminDashboard() {
   const [guardias, setGuardias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [viewState, setViewState] = useState({
+    longitude: -73.0134,
+    latitude: -36.8222,
+    zoom: 16
+  });
+  const [marcaLocalizacion, setMarcaLocalizacion] = useState({lat: -36.8222, lng: -73.0134});
+  const MAPBOX_TOKEN = "pk.eyJ1IjoibWlsZW5ja2FhIiwiYSI6ImNtamxxZDAzYjJxNTIza3B5OXZmcmk1cXMifQ.xW3QubyrM10uSbt08RlAPA";
+
+  const handleMapClick = (event) => {
+    const [lng, lat] = event.lngLat;
+    //validar limites UBB
+    if(lat < -36.8255 || lat > -36.8190 || lng < -73.0170 || lng > -73.0090){
+        alert("El bicicletero debe estar dentro del campus UBB");
+        return;
+    }
+    setMarcaLocalizacion({lat, lng});
+  };
 
   // --- Estado Formulario Bicicletero ---
   const [editarId, setEditarId] = useState('');
@@ -20,7 +39,7 @@ function AdminDashboard() {
   const [horaCierre, setHoraCierre] = useState('21:00');
   const [guardiaId, setGuardiaId] = useState('');
 
-  // --- NUEVO: Estado Formulario Guardia ---
+  // --- Estado Formulario Guardia ---
   const [editarGuardiaRut, setEditarGuardiaRut] = useState(null); // null = modo crear
   const [gRut, setGRut] = useState('');
   const [gNombre, setGNombre] = useState('');
@@ -269,6 +288,35 @@ function AdminDashboard() {
       <section>
         <h2>Gestión de Bicicleteros</h2>
         <form onSubmit={handleSubmit}>
+          <div style = {{ height: '400px', width: '100%', marginBottom: '20px' }}>
+            <Map 
+            {...viewState}
+            onMove= {evt => setViewState(evt.viewState)}
+            style = {{width: '100%', height: '100%'}}
+            mapStyle = "mapbox://styles/mapbox/streets-v11"
+            mapboxAccessToken = {MAPBOX_TOKEN}
+            onClick = {handleMapClick}>
+              <NavigationControl/>
+
+              <Marker 
+                longitude={marcaLocalizacion.lng} 
+                latitude={marcaLocalizacion.lat} 
+                color="red" />
+                {/* marcadores bicicleteros */}
+                {bicicleteros.map(b => (
+                  b.latitud && b.longitud &&(
+                   
+                    <Marker 
+                      key={b.id}
+                      longitude={parseFloat(b.longitud)}
+                      latitude={parseFloat(b.latitud)}
+                      color="blue" 
+                      onClick = {() => alert(b.ubicacion)} />
+                  )
+                ))}
+            </Map>
+          </div>
+
             <div>
               <label>Ubicación: </label>
               <input type="text" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} required />
