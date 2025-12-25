@@ -15,6 +15,18 @@ export const Bicicletero = new EntitySchema({
       length:255,
       nullable: false,
     },
+    latitud:{
+      type:"decimal",
+      precision: 10,
+      scale: 8,
+      nullable: true,
+    },
+    longitud:{
+      type:"decimal",
+      precision: 11,
+      scale: 8,
+      nullable: true,
+    },
     capacidad:{
       type:"int",
       nullable: false,
