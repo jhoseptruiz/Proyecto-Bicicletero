@@ -5,6 +5,7 @@ import { DATABASE, DB_USERNAME, DB_HOST, DB_PASSWORD, DB_PORT } from "./configEn
 import { User } from "../entities/user.entity.js";
 import { Bicicletero } from "../entities/bicicletero.entity.js";
 import { Bicicleta } from "../entities/bicicleta.entity.js";
+import { RegistroUso } from "../entities/registroUso.entity.js";
 
 export const AppDataSource = new DataSource({
   type: "postgres",
@@ -17,7 +18,7 @@ export const AppDataSource = new DataSource({
   synchronize: true, 
   logging: false,
 
-  entities: [User, Bicicletero, Bicicleta], 
+  entities: [User, Bicicletero, Bicicleta, RegistroUso], 
 
   migrations: [],
   subscribers: [],
