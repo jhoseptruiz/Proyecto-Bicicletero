@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getBicicleteros, CrearBicicletero, ActualizarBicicletero } from '../services/bicicletero.service.js';
-// IMPORTANTE: Asegúrate de importar las funciones nuevas de guardias aquí
+import { getBicicleteros, CrearBicicletero, ActualizarBicicletero, deleteBicicletero } from '../services/bicicletero.service.js';
 import { getGuardias, createGuardia, updateGuardia, deleteGuardia } from '../services/user.service.js';
 
 function AdminDashboard() {
@@ -104,6 +103,18 @@ function AdminDashboard() {
       setError(err.message);
     }
   };
+
+  const handleDeleteBicicletero = async (id) => {
+    if(!window.confirm("¿Estás seguro de eliminar este bicicletero?")) return;
+    try {
+      await deleteBicicletero(id);
+      setBicicleteros(bicicleteros.filter(b => b.id !== id));
+      alert('Bicicletero eliminado');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   // --- Lógica Guardias ---
   const resetFormularioGuardia = () => {
     setEditarGuardiaRut(null);
@@ -321,7 +332,7 @@ function AdminDashboard() {
                     <td>{b.guardiaAsignado ? `${b.guardiaAsignado.nombre} ${b.guardiaAsignado.apellido}` : '(Sin asignar)'}</td>
                     <td>
                     <button onClick={() => handleEditClick(b)}>Editar</button>
-                    <button style={{marginLeft: '5px'}}>Eliminar</button> 
+                    <button onClick={() => handleDeleteBicicletero(b.id)} style={{marginLeft: '5px', backgroundColor: '#ffcccc'}}>Eliminar</button> 
                     </td>
                 </tr>
                 )) 
