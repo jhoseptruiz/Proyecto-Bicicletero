@@ -21,12 +21,37 @@ function AdminDashboard() {
   const MAPBOX_TOKEN = "pk.eyJ1IjoibWlsZW5ja2FhIiwiYSI6ImNtamxxZDAzYjJxNTIza3B5OXZmcmk1cXMifQ.xW3QubyrM10uSbt08RlAPA";
 
   const handleMapClick = (event) => {
-    const [lng, lat] = event.lngLat;
+    const {lng, lat} = event.lngLat;
+    //limites UBB
+    const limitesUBB =[
+      { lat: -36.82062174, lng: -73.01483544 },
+      { lat: -36.82082823, lng: -73.01619221 },
+      { lat: -36.82223570, lng: -73.01659265 },
+      { lat: -36.82410483, lng: -73.01509450 },
+      { lat: -36.82445675, lng: -73.01175369 },
+      { lat: -36.82155629, lng: -73.01028303 },
+    ];
     //validar limites UBB
-    if(lat < -36.8255 || lat > -36.8190 || lng < -73.0170 || lng > -73.0090){
+    const puntoLimite = (latitude, longitude, polygon) => {
+        let x = latitude, y = longitude;
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            let xi = polygon[i].lat, yi = polygon[i].lng;
+            let xj = polygon[j].lat, yj = polygon[j].lng;
+
+            let intersect = ((yi > y) !== (yj > y)) &&
+                (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    };
+    //ejecutar validacion
+    const estaDentro = puntoLimite(lat, lng, limitesUBB);
+    if(!estaDentro){
         alert("El bicicletero debe estar dentro del campus UBB");
         return;
     }
+    //si pasa validacion marca la ubicacion
     setMarcaLocalizacion({lat, lng});
   };
 
@@ -107,6 +132,8 @@ function AdminDashboard() {
         horaApertura: horaApertura || null,
         horaCierre: horaCierre || null,
         guardiaId: guardiaId || null,
+        latitud: marcaLocalizacion.lat,
+        longitud: marcaLocalizacion.lng,
       };
 
       if(editarId){
@@ -305,13 +332,15 @@ function AdminDashboard() {
                 {/* marcadores bicicleteros */}
                 {bicicleteros.map(b => (
                   b.latitud && b.longitud &&(
-                   
                     <Marker 
                       key={b.id}
                       longitude={parseFloat(b.longitud)}
                       latitude={parseFloat(b.latitud)}
                       color="blue" 
-                      onClick = {() => alert(b.ubicacion)} />
+                      onClick = {() =>{
+                        e.originalEvent.stopPropagation();
+                        alert(b.ubicacion)
+                      }} />
                   )
                 ))}
             </Map>
@@ -359,6 +388,8 @@ function AdminDashboard() {
             <tr>
                 <th>ID</th>
                 <th>Ubicación</th>
+                <th>Latitud</th>
+                <th>Longitud</th>
                 <th>Ocupados</th>
                 <th>Capacidad</th>
                 <th>Estado</th>
@@ -373,6 +404,8 @@ function AdminDashboard() {
                 <tr key={b.id}>
                     <td>{b.id}</td>
                     <td>{b.ubicacion}</td>
+                    <td>{b.latitud || '-'} </td>
+                    <td>{b.longitud || '-'}</td>
                     <td>{b.bicicletasGuardadas}</td>
                     <td>{b.capacidad}</td>
                     <td>{b.estado}</td>
