@@ -63,3 +63,11 @@ export async function ActualizarBicicletero(id,data){
 }
 
 //deleteBicicletero  
+export async function EliminarBicicletero(id){
+    const bicicletero = await bicicleteroRepo.findOneBy({id: parseInt(id)});
+    if(!bicicletero){
+        throw new Error("Bicicletero no encontrado");
+    }
+    return await bicicleteroRepo.remove(bicicletero);
+}
+

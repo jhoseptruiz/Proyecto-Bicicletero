@@ -1,4 +1,4 @@
-import { ActualizarBicicletero, AllBicicleteros, CrearBicicletero } from "../services/bicicletero.service.js";
+import { ActualizarBicicletero, AllBicicleteros, CrearBicicletero, EliminarBicicletero } from "../services/bicicletero.service.js";
 import {handleSuccess, handleErrorClient, handleErrorServer} from "../Handlers/responseHandlers.js";
 
 export async function getBicicleteros(req, res) {
@@ -32,3 +32,16 @@ export async function putBicicleteros(req, res){
         handleErrorServer(res, 500, "Error al actualizar el bicicletero", error.message);
     }
 } 
+
+export async function deleteBicicleteros(req, res){
+    try{
+        const {id} = req.params;
+        await EliminarBicicletero(id);
+        handleSuccess(res, 200, "Bicicletero eliminado exitosamente");
+    } catch(error){
+        if(error.message.includes("No encontrado")){
+            return handleErrorClient(res, 404, error.message);
+        }
+        handleErrorServer(res, 500, "Error al eliminar el bicicletero", error.message);
+    }
+}
