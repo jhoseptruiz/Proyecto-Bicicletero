@@ -12,15 +12,25 @@ export async function getPersonal(req, res) {
 
 //Crear Personal
 export async function createPersonal(req, res) {
-    try{
+    try {
         const roleInput = req.body.role;
         const role = (roleInput === 'admin' || roleInput === 'guardia') ? roleInput : 'guardia';
-        const data = {...req.body, role };
+        const data = { ...req.body, role };
 
         const newPersonal = await createUser(data);
         handleSuccess(res, 201, "Usuario creado", newPersonal);
-    } catch (error){
+
+    } catch (error) { 
+        // Verifica si el error es por duplicidad (RUT o Email ya existen)
+        if (error.code === '23505') {
+            return res.status(409).json({
+                message: "El usuario con ese RUT o email ya existe"
+            });
+        }
+
+        // Si es otro error, lanzamos el error genérico del servidor
         handleErrorServer(res, 500, "Error al crear Usuario", error.message);
+
     }
 }
 
