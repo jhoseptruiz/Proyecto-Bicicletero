@@ -1,50 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { getMisBicicletas } from '../services/bicicleta.service';
-import { scanQr } from '../services/checkin.service';
+import { scanQr, validateQr } from '../services/checkin.service';
+import { Link } from 'react-router-dom';
 
 function Scanner() {
+  // Estados de Flujo: 'WAITING' | 'SCANNING' | 'DECIDING' | 'PROCESSING' | 'RESULT'
+  const [step, setStep] = useState('WAITING');
+
   const [bicicletas, setBicicletas] = useState([]);
+  const [contextData, setContextData] = useState(null); // Datos del bicicletero escaneado
   const [selectedBicicleta, setSelectedBicicleta] = useState('');
   const [mensaje, setMensaje] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [scanning, setScanning] = useState(false);
 
   const scannerRef = useRef(null);
 
   useEffect(() => {
     cargarBicicletas();
-
-    // Cleanup al demostrar
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(err => console.error("Error cleaning scanner", err));
-      }
-    };
+    return () => stopScanner();
   }, []);
 
   const cargarBicicletas = async () => {
     try {
       const resp = await getMisBicicletas();
-      const lista = resp.data || resp;
-      setBicicletas(lista);
-      if (lista.length > 0) {
-        setSelectedBicicleta(lista[0].id);
-      }
+      setBicicletas(resp.data || resp);
     } catch (error) {
       console.error("Error cargando bicis", error);
     }
   };
 
+  // --- PASO 1: INICIAR ESCANEO ---
   const startScanner = () => {
-    if (!selectedBicicleta) {
-      alert("Por favor selecciona una bicicleta primero.");
-      return;
-    }
+    setStep('SCANNING');
     setMensaje(null);
-    setScanning(true);
+    setContextData(null);
 
-    // Pequeño timeout para asegurar que el div exista
     setTimeout(() => {
       const scanner = new Html5QrcodeScanner(
         "reader",
@@ -52,131 +42,196 @@ function Scanner() {
         false
       );
       scannerRef.current = scanner;
-
       scanner.render(onScanSuccess, onScanFailure);
     }, 100);
   };
 
-  const onScanSuccess = (decodedText) => {
-    // Detener scanner al tener éxito
+  const stopScanner = () => {
     if (scannerRef.current) {
       scannerRef.current.clear().catch(console.error);
       scannerRef.current = null;
     }
-    setScanning(false);
-    procesarCheckin(decodedText);
+  };
+
+  const onScanSuccess = async (decodedText) => {
+    stopScanner();
+    setStep('PROCESSING');
+    setMensaje({ tipo: 'info', texto: "Verificando QR y Ubicación..." });
+
+    try {
+      // 1. Validar QR con Backend
+      const validation = await validateQr(decodedText);
+      const bicicletero = validation.data;
+
+      // 2. Validar GPS
+      if (!navigator.geolocation) throw new Error("GPS no soportado");
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          setContextData({
+            qr: decodedText,
+            ...bicicletero,
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+          setStep('DECIDING');
+          setMensaje(null);
+        },
+        (err) => {
+          setMensaje({ tipo: 'error', texto: "Error GPS: " + err.message });
+          setStep('WAITING');
+        }
+      );
+
+    } catch (error) {
+      setMensaje({ tipo: 'error', texto: error.message || "QR Inválido" });
+      setStep('WAITING');
+    }
   };
 
   const onScanFailure = (error) => {
-    // No hacer nada ruidoso, es común mientras busca
-    // console.warn(`Code scan error = ${ error } `);
+    // console.warn(error);
   };
 
-  const procesarCheckin = (qrCodeContent) => {
-    setLoading(true);
-    setMensaje({ tipo: 'info', texto: "QR Detectado. Obteniendo ubicación..." });
-
-    if (!navigator.geolocation) {
-      setMensaje({ tipo: 'error', texto: "Navegador sin soporte GPS." });
-      setLoading(false);
+  // --- PASO 3: EJECUTAR ACCIÓN ---
+  const ejecutarAccion = async () => {
+    if (!selectedBicicleta) {
+      alert("Selecciona una bicicleta");
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        try {
-          setMensaje({ tipo: 'info', texto: `Ubicación: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}. Enviando...` });
-          const respuesta = await scanQr(qrCodeContent, latitude, longitude, selectedBicicleta);
-          setMensaje({ tipo: 'success', texto: respuesta.message });
-        } catch (error) {
-          setMensaje({ tipo: 'error', texto: error.message || "Error al procesar" });
-        } finally {
-          setLoading(false);
-        }
-      },
-      (error) => {
-        setMensaje({ tipo: 'error', texto: "Error GPS: " + error.message });
-        setLoading(false);
-      },
-      { enableHighAccuracy: true }
+    setStep('PROCESSING');
+    setMensaje({ tipo: 'info', texto: "Procesando solicitud..." });
+
+    try {
+      const { qr, lat, lng } = contextData;
+      const res = await scanQr(qr, lat, lng, selectedBicicleta);
+      setMensaje({ tipo: 'success', texto: res.message });
+      setStep('RESULT');
+      cargarBicicletas(); // Recargar estado para ver cambio
+    } catch (error) {
+      setMensaje({ tipo: 'error', texto: error.message || "Error al procesar" });
+      setStep('DECIDING'); // Dejar intentar de nuevo
+    }
+  };
+
+  // --- RENDERIZADO DEL WIZARD ---
+
+  const renderDeciding = () => {
+    if (!contextData) return null;
+
+    // Filtros Inteligentes
+    // Bicicletas adentro de ESTE bicicletero exacto
+    const bicisAdentro = bicicletas.filter(b => b.estadoActual?.estaAdentro && b.estadoActual?.bicicleteroId == contextData.id);
+
+    // Bicicletas disponibles (afuera de cualquier lado)
+    const bicisAfuera = bicicletas.filter(b => !b.estadoActual?.estaAdentro);
+
+    return (
+      <div>
+        <h3 style={{ marginBottom: '5px' }}>📍 {contextData.ubicacion}</h3>
+        <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '15px' }}>Selecciona qué deseas hacer:</p>
+
+        {/* SECCIÓN RETIRO */}
+        {bicisAdentro.length > 0 && (
+          <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #17a2b8', borderRadius: '8px', backgroundColor: '#f0faff' }}>
+            <h4 style={{ color: '#17a2b8', margin: '0 0 10px 0' }}>📤 Retirar Bicicleta</h4>
+            <select
+              style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
+              onChange={(e) => setSelectedBicicleta(e.target.value)}
+              value={selectedBicicleta}
+            >
+              <option value="">-- Selecciona para Retirar --</option>
+              {bicisAdentro.map(b => <option key={b.id} value={b.id}>{b.marca}</option>)}
+            </select>
+            <button onClick={ejecutarAccion} disabled={!selectedBicicleta || !bicisAdentro.find(b => b.id == selectedBicicleta)} className="btn-primary" style={{ backgroundColor: '#17a2b8', width: '100%', color: 'white', padding: '10px', border: 'none', borderRadius: '4px' }}>
+              Confirmar Retiro
+            </button>
+          </div>
+        )}
+
+        {/* SECCIÓN INGRESO */}
+        <div style={{ padding: '15px', border: '1px solid #28a745', borderRadius: '8px', backgroundColor: '#f0fff4' }}>
+          <h4 style={{ color: '#28a745', margin: '0 0 10px 0' }}>📥 Ingresar Bicicleta</h4>
+
+          {bicisAfuera.length > 0 ? (
+            <>
+              <select
+                style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
+                onChange={(e) => setSelectedBicicleta(e.target.value)}
+                value={selectedBicicleta}
+              >
+                <option value="">-- Selecciona para Ingresar --</option>
+                {bicisAfuera.map(b => <option key={b.id} value={b.id}>{b.marca}</option>)}
+              </select>
+              <button onClick={ejecutarAccion} disabled={!selectedBicicleta || !bicisAfuera.find(b => b.id == selectedBicicleta)} className="btn-primary" style={{ backgroundColor: '#28a745', width: '100%', color: 'white', padding: '10px', border: 'none', borderRadius: '4px' }}>
+                Confirmar Ingreso
+              </button>
+            </>
+          ) : (
+            <p style={{ fontStyle: 'italic', color: '#666' }}>No tienes bicicletas disponibles afuera.</p>
+          )}
+
+          <div style={{ marginTop: '15px', borderTop: '1px solid #ccc', paddingTop: '10px' }}>
+            <Link to="/perfil">
+              <button style={{ background: 'white', border: '1px dashed #28a745', color: '#28a745', width: '100%', padding: '8px', borderRadius: '4px', cursor: 'pointer' }}>
+                + Registrar Nueva Bicicleta
+              </button>
+            </Link>
+          </div>
+        </div>
+
+        <button onClick={() => setStep('WAITING')} style={{ marginTop: '20px', background: 'none', border: 'none', color: '#666', textDecoration: 'underline', cursor: 'pointer', width: '100%' }}>
+          Cancelar / Escanear otro
+        </button>
+      </div>
     );
   };
 
   return (
     <div style={{ border: '1px solid #ccc', padding: '20px', borderRadius: '8px', marginTop: '20px' }}>
-      <h2>Escanear QR (Cámara)</h2>
 
+      {/* HEADER STATUS */}
       {mensaje && (
         <div style={{
-          padding: '10px',
-          marginBottom: '15px',
+          padding: '10px', marginBottom: '15px', borderRadius: '4px',
           backgroundColor: mensaje.tipo === 'error' ? '#ffeeee' : (mensaje.tipo === 'success' ? '#eeffee' : '#eef9ff'),
           color: mensaje.tipo === 'error' ? 'red' : (mensaje.tipo === 'success' ? 'green' : '#0055aa'),
-          borderRadius: '4px'
         }}>
           {mensaje.texto}
         </div>
       )}
 
-      {/* Selector de Bicicleta */}
-      <div style={{ marginBottom: '15px' }}>
-        <label style={{ display: 'block', marginBottom: '5px' }}>Selecciona tu Bicicleta:</label>
-        {bicicletas.length === 0 ? (
-          <p style={{ color: 'gray' }}>Cargando bicicletas...</p>
-        ) : (
-          <select
-            value={selectedBicicleta}
-            onChange={(e) => setSelectedBicicleta(e.target.value)}
-            disabled={scanning || loading}
-            style={{ padding: '8px', width: '100%' }}
-          >
-            {bicicletas.map(b => (
-              <option key={b.id} value={b.id}>
-                {b.marca} {b.estaGuardada ? '(AL INTERIOR)' : ''}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
-
-      {/* Validación Bloqueante */}
-      {selectedBicicleta && bicicletas.find(b => b.id == selectedBicicleta)?.estaGuardada ? (
-        <div style={{ padding: '10px', backgroundColor: '#fff3cd', color: '#856404', borderRadius: '4px', textAlign: 'center' }}>
-          Esta bicicleta ya figura al interior. <br />
-          Escanea solo si vas a <strong>RETIRARLA</strong>.
-        </div>
-      ) : (
-        null // Si no está guardada, no mostramos aviso (flujo ingreso)
-      )}
-
-      <br />
-
-      {/* Área del Scanner */}
-      {scanning ? (
-        <div id="reader" width="100%"></div>
-      ) : (
-        !loading && (
-          <button
-            onClick={startScanner}
-            className="btn-primary"
-            disabled={bicicletas.length === 0}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              width: '100%',
-              cursor: 'pointer'
-            }}
-          >
-            Abrir Cámara
+      {/* VIEW SWITCHER */}
+      {step === 'WAITING' && (
+        <div style={{ textAlign: 'center' }}>
+          <h2>¿Listo para chequear?</h2>
+          <p>Escanea el código QR del bicicletero para identificarlo.</p>
+          <button onClick={startScanner} style={{ padding: '15px 30px', fontSize: '18px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '50px', cursor: 'pointer' }}>
+            📷 Escanear QR
           </button>
-        )
+        </div>
       )}
 
-      {loading && <p style={{ textAlign: 'center' }}>Procesando...</p>}
+      {step === 'SCANNING' && (
+        <div>
+          <h3>Escanear Código...</h3>
+          <div id="reader" width="100%"></div>
+          <button onClick={() => { stopScanner(); setStep('WAITING'); }} style={{ marginTop: '10px', width: '100%', padding: '10px' }}>Cancelar</button>
+        </div>
+      )}
+
+      {step === 'DECIDING' && renderDeciding()}
+
+      {step === 'RESULT' && (
+        <div style={{ textAlign: 'center' }}>
+          <h3>¡Listo!</h3>
+          <p>{mensaje?.texto}</p>
+          <button onClick={() => setStep('WAITING')} style={{ marginTop: '10px', padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '5px' }}>Volver al Inicio</button>
+        </div>
+      )}
+
+      {step === 'PROCESSING' && <p style={{ textAlign: 'center' }}>Procesando...</p>}
 
     </div>
   );

@@ -155,6 +155,21 @@ export async function obtenerEstadoSolicitud(rutAlumno) {
     };
 }
 
+export async function validarQrBicicletero(codigoQr) {
+    const bicicletero = await bicicleteroRepo.findOne({ where: { codigoQr } });
+    if (!bicicletero) {
+        throw new Error("Código QR no válido o no encontrado.");
+    }
+    return {
+        id: bicicletero.id,
+        ubicacion: bicicletero.ubicacion,
+        latitud: bicicletero.latitud,
+        longitud: bicicletero.longitud,
+        capacidad: bicicletero.capacidad,
+        bicicletasGuardadas: bicicletero.bicicletasGuardadas
+    };
+}
+
 /**
  * Verifica si el usuario ya tiene esta bici adentro para guiar el flujo en el Frontend.
  * @returns {Promise<boolean>} true si la bici ya está adentro.

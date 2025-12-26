@@ -4,8 +4,24 @@ import {
     obtenerEstadoSolicitud,
     obtenerEstadoBicicleteros,
     verificarBicicletaEnBicicletero,
+    validarQrBicicletero
 } from "../services/checkin.service.js";
 import { handleSuccess, handleErrorClient, handleErrorServer } from "../Handlers/responseHandlers.js";
+
+/**
+ * Valida un QR y devuelve su información (contexto)
+ */
+export async function validateQr(req, res) {
+    try {
+        const { codigoQr } = req.body;
+        if (!codigoQr) throw new Error("Falta codigoQr");
+
+        const data = await validarQrBicicletero(codigoQr);
+        handleSuccess(res, 200, "Bicicletero encontrado", data);
+    } catch (error) {
+        handleErrorClient(res, 404, error.message);
+    }
+}
 
 /**
  * Maneja el escaneo del QR. Deriva a ingreso o salida según si ya tiene bici dentro.

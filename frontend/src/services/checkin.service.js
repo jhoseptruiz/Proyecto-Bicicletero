@@ -31,3 +31,13 @@ export async function getMapData() {
         throw error.response?.data || { message: "Error al cargar mapa" };
     }
 }
+// POST /api/checkin/validate
+export async function validateQr(codigoQr) {
+    try {
+        const payload = { codigoQr };
+        const response = await apiClient.post('/checkin/validate', payload);
+        return response.data; // { message, data: { id, ubicacion, lat, lng } }
+    } catch (error) {
+        throw error.response?.data || { message: "QR Inválido o desconocido" };
+    }
+}

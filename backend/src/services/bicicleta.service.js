@@ -29,16 +29,22 @@ export async function findMisBicicletas(usuarioRut) {
     where: {
       propietario: { rut: usuarioRut },
     },
-    relations: ["usos"],
+    relations: ["usos", "usos.bicicletero"],
   });
 
-  // Mapeamos para indicar si está guardada (tiene un uso sin fechaSalida)
+  // Mapeamos para indicar si está guardada y DÓNDE
   return bicis.map(b => {
     const usoActivo = b.usos?.find(u => u.fechaSalida === null);
     return {
       ...b,
-      usos: undefined, // Limpiamos para no enviar historial completo
-      estaGuardada: !!usoActivo // true si está dentro
+      usos: undefined,
+      estadoActual: usoActivo ? {
+        estaAdentro: true,
+        bicicleteroId: usoActivo.bicicletero.id,
+        ubicacion: usoActivo.bicicletero.ubicacion // Para mostrar "En Biblioteca", etc.
+      } : {
+        estaAdentro: false
+      }
     };
   });
 }
