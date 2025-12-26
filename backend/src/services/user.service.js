@@ -35,11 +35,11 @@ export async function findUserByEmail(email) {
   return await userRepository.findOneBy({ email });
 }
 
-// Servicio para encontrar todos los guardias
-export async function EncontrarGuardias(){
+// Servicio para encontrar personal (guardias y admins)
+export async function EncontrarPersonal(){
   return await userRepository.find({
-    where: {role:"guardia"},
-    select: ["rut","nombre","apellido","email"]
+    where: [{role: "guardia"}, {role: "admin"}],
+    select: ["rut","nombre","apellido","email", "role"],
   });
 }
 // Servicio para encontrar por RUT
