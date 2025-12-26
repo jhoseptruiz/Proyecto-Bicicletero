@@ -10,6 +10,7 @@ function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('bicicleteros');
   const [filtroRol, setFiltroRol] = useState('todos');
+  const [filtroEstado, setFiltroEstado] = useState('todos');
 
   // --- Estado Datos ---
   const [bicicleteros, setBicicleteros] = useState([]);
@@ -249,7 +250,7 @@ function AdminDashboard() {
       setError(err.message);
     }
   };
-  
+
   // --- Logout ---
   const handleLogout = () =>{
     localStorage.removeItem('token');
@@ -263,6 +264,12 @@ function AdminDashboard() {
     //filtra por rol
     return p.role === filtroRol;
   });
+
+  const bicicleterosFiltrados = bicicleteros.filter(b => {
+    if (filtroEstado === 'todos') return true;
+    return b.estado === filtroEstado;
+  });
+  
 
   if (loading) return <div>Cargando panel...</div>;
   if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
@@ -367,7 +374,7 @@ function AdminDashboard() {
                     <div>
                       <label style ={{marginRight: '10px'}} >Filtrar por:</label>
                       <select value={filtroRol} onChange={e => setFiltroRol(e.target.value)}>
-                        <option value="">Todos</option>
+                        <option value="todos">Todos</option>
                         <option value="guardia">Guardia</option>
                         <option value="admin">Administrador</option>
                       </select>
@@ -509,7 +516,18 @@ function AdminDashboard() {
                 </div>
 
                 <div className="table-container">
+                    <div style= {{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
                     <h3>Bicicleteros existentes</h3>
+                      <div>
+                        <label style ={{marginRight: '10px'}} >Filtrar por:</label>
+                        <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
+                          <option value="todos">Todos</option>
+                          <option value="operativo">Operativo</option>
+                          <option value="mantenimiento">Mantenimiento</option>
+                          <option value="fuera_de_servicio">Fuera de servicio</option>
+                        </select>
+                    </div>
+                  </div>
                     <table className="data-table">
                         <thead>
                         <tr>
@@ -524,8 +542,8 @@ function AdminDashboard() {
                         </tr>
                         </thead>
                         <tbody>
-                        {bicicleteros.length > 0 ? (
-                            bicicleteros.map(b => (
+                        {bicicleterosFiltrados.length > 0 ? (
+                            bicicleterosFiltrados.map(b => (
                             <tr key={b.id}>
                                 <td>{b.ubicacion}</td>
                                 <td>{b.latitud}</td>
