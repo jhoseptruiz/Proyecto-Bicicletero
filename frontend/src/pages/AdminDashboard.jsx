@@ -9,6 +9,7 @@ import './AdminDashboard.css';
 function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('bicicleteros');
+
   // --- Estado Datos ---
   const [bicicleteros, setBicicleteros] = useState([]);
   const [guardias, setGuardias] = useState([]);
@@ -22,6 +23,15 @@ function AdminDashboard() {
   // --- Estado Mapa ---
   const [marcaLocalizacion, setMarcaLocalizacion] = useState({lat: -36.8222, lng: -73.0134});
   const MAPBOX_TOKEN = "pk.eyJ1IjoibWlsZW5ja2FhIiwiYSI6ImNtamxxZDAzYjJxNTIza3B5OXZmcmk1cXMifQ.xW3QubyrM10uSbt08RlAPA";
+  
+  const getColorEstado = (estado) => {
+    switch(estado){
+      case 'operativo': return 'green';
+      case 'mantenimiento': return 'orange';
+      case 'fuera_de_Servicio': return 'red';
+      default: return 'gray';
+    }
+  };
 
   const handleMapClick = (event) => {
     const {lng, lat} = event.lngLat;
@@ -222,7 +232,7 @@ function AdminDashboard() {
       setError(err.message);
     }
   };
-
+  
   // --- Logout ---
   const handleLogout = () =>{
     localStorage.removeItem('token');
@@ -371,7 +381,7 @@ function AdminDashboard() {
                             mapboxAccessToken = {MAPBOX_TOKEN}
                             onClick = {handleMapClick}>
                             <NavigationControl/>
-
+                            {/* marcador seleccionable */}
                             <Marker 
                                 longitude={marcaLocalizacion.lng} 
                                 latitude={marcaLocalizacion.lat} 
@@ -383,7 +393,7 @@ function AdminDashboard() {
                                     key={b.id}
                                     longitude={parseFloat(b.longitud)}
                                     latitude={parseFloat(b.latitud)}
-                                    color="blue" 
+                                    color={getColorEstado(b.estado)} 
                                     onClick = {(e) =>{
                                         e.originalEvent.stopPropagation();
                                         // Al hacer click en un marcador existente, cargamos sus datos en el form
@@ -413,7 +423,7 @@ function AdminDashboard() {
                                 <select value={estado} onChange={(e) => setEstado(e.target.value)}>
                                     <option value="operativo">Operativo</option>
                                     <option value="mantenimiento" >Mantenimiento</option>
-                                    <option value="Fuera_de_servicio">Fuera de servicio</option>
+                                    <option value="fuera_de_Servicio">Fuera de servicio</option>
                                 </select>
                             </div>
                             <div>
@@ -448,6 +458,8 @@ function AdminDashboard() {
                         <thead>
                         <tr>
                             <th>Ubicación</th>
+                            <th>Latitud</th>
+                            <th>Longitud</th>
                             <th>Ocupados/Cap</th>
                             <th>Estado</th>
                             <th>Horarios</th>
@@ -460,6 +472,8 @@ function AdminDashboard() {
                             bicicleteros.map(b => (
                             <tr key={b.id}>
                                 <td>{b.ubicacion}</td>
+                                <td>{b.latitud}</td>
+                                <td>{b.longitud}</td>
                                 <td>{b.bicicletasGuardadas} / {b.capacidad}</td>
                                 <td><span className={`badge ${b.estado}`}>{b.estado}</span></td>
                                 <td>{b.horaApertura && b.horaCierre ? `${b.horaApertura} - ${b.horaCierre}` : '24/7'}</td>
