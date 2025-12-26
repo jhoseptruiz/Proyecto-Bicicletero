@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBicicleteros, CrearBicicletero, ActualizarBicicletero, deleteBicicletero } from '../services/bicicletero.service.js';
-import { getGuardias, createGuardia, updateGuardia, deleteGuardia } from '../services/user.service.js';
+import { getPersonal, createPersonal, updatePersonal, deletePersonal } from '../services/user.service.js';
 import Map, {Marker, NavigationControl} from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './AdminDashboard.css';
@@ -9,10 +9,11 @@ import './AdminDashboard.css';
 function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('bicicleteros');
+  const [filtroRol, setFiltroRol] = useState('todos');
 
   // --- Estado Datos ---
   const [bicicleteros, setBicicleteros] = useState([]);
-  const [guardias, setGuardias] = useState([]);
+  const [Personal, setPersonal] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [viewState, setViewState] = useState({
@@ -75,15 +76,16 @@ function AdminDashboard() {
   const [estado, setEstado] = useState('operativo');
   const [horaApertura, setHoraApertura] = useState('07:00');
   const [horaCierre, setHoraCierre] = useState('21:00');
-  const [guardiaId, setGuardiaId] = useState('');
+  const [guardiaId, setguardiaId] = useState('');
 
-  // --- Estado Formulario Guardia ---
-  const [editarGuardiaRut, setEditarGuardiaRut] = useState(null); // null = modo crear
-  const [gRut, setGRut] = useState('');
-  const [gNombre, setGNombre] = useState('');
-  const [gApellido, setGApellido] = useState('');
-  const [gEmail, setGEmail] = useState('');
-  const [gPassword, setGPassword] = useState('');
+  // --- Estado Formulario Personal ---
+  const [editarPersonalRut, setEditarPersonalRut] = useState(null); // null = modo crear
+  const [pRut, setpRut] = useState('');
+  const [pNombre, setpNombre] = useState('');
+  const [pApellido, setpApellido] = useState('');
+  const [pGmail, setpGmail] = useState('');
+  const [pPassword, setpPassword] = useState('');
+  const [pRole, setpRole] = useState('guardia');
 
   useEffect(() => {
     fetchData();
@@ -94,13 +96,13 @@ function AdminDashboard() {
       setLoading(true);
       setError('');
 
-      const [bicicleterosData, guardiasData] = await Promise.all([
+      const [bicicleterosData, personalData] = await Promise.all([
         getBicicleteros(),
-        getGuardias()
+        getPersonal()
       ]);
 
       setBicicleteros(bicicleterosData.data || []);
-      setGuardias(guardiasData.data || []);
+      setPersonal(personalData.data || []);
     } catch (err) {
       setError(err.message);
       // Si el error es 401 (Unauthorized), redirigir al login
@@ -120,7 +122,7 @@ function AdminDashboard() {
     setEstado('operativo');
     setHoraApertura('07:00');
     setHoraCierre('21:00');
-    setGuardiaId('');
+    setguardiaId('');
     setError('');
   };
 
@@ -131,7 +133,7 @@ function AdminDashboard() {
     setEstado(bicicletero.estado);
     setHoraApertura(bicicletero.horaApertura);
     setHoraCierre(bicicletero.horaCierre);
-    setGuardiaId(bicicletero.guardiaAsignado ? bicicletero.guardiaAsignado.rut:'' );
+    setguardiaId(bicicletero.guardiaAsignado ? bicicletero.guardiaAsignado.rut:'' );
   };
 
   const handleSubmit = async (e) => {
@@ -174,59 +176,74 @@ function AdminDashboard() {
     }
   };
 
-  // --- Lógica Guardias ---
-  const resetFormularioGuardia = () => {
-    setEditarGuardiaRut(null);
-    setGRut('');
-    setGNombre('');
-    setGApellido('');
-    setGEmail('');
-    setGPassword('');
+  // --- Lógica Personal ---
+  const resetFormularioPersonal = () => {
+    setEditarPersonalRut(null);
+    setpRut('');
+    setpNombre('');
+    setpApellido('');
+    setpGmail('');
+    setpPassword('');
+    setpRole('guardia');
     setError('');
   };
 
-  const handleEditGuardiaClick = (guardia) => {
-    setEditarGuardiaRut(guardia.rut);
-    setGRut(guardia.rut);
-    setGNombre(guardia.nombre);
-    setGApellido(guardia.apellido);
-    setGEmail(guardia.email);
-    setGPassword(''); // No llenamos la contraseña por seguridad
+  const handleEditPersonalClick = (usuario) => {
+    setEditarPersonalRut(usuario.rut);
+    setpRut(usuario.rut);
+    setpNombre(usuario.nombre);
+    setpApellido(usuario.apellido);
+    setpGmail(usuario.email);
+    setpRole(usuario.role||'guardia');
+    setpPassword(''); // No llenamos la contraseña por seguridad
   };
 
-  const handleGuardiaSubmit = async (e) => {
+  const handlePersonalSubmit = async (e) => {
     e.preventDefault();
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    if (editarPersonalRut === currentUser.rut && pRole !== 'admin') {
+      setError("No puedes quitarte el rol de administrador a ti mismo.");
+      return;
+    }
+
     try {
       setError('');
-      const guardiaData = {
-        rut: gRut,
-        nombre: gNombre,
-        apellido: gApellido,
-        email: gEmail,
-        password: gPassword 
+      const personalData = {
+        rut: pRut,
+        nombre: pNombre,
+        apellido: pApellido,
+        email: pGmail,
+        password: pPassword,
+        role: pRole
       };
 
-      if (editarGuardiaRut) {
-        await updateGuardia(editarGuardiaRut, guardiaData);
-        alert('Guardia actualizado');
+      if (editarPersonalRut) {
+        await updatePersonal(editarPersonalRut, personalData);
+        alert('Usuario actualizado');
       } else {
-        if (!gPassword) throw new Error("La contraseña es obligatoria para crear un nuevo guardia");
-        await createGuardia(guardiaData);
-        alert('Guardia creado');
+        if (!pPassword) throw new Error("La contraseña es obligatoria para crear un nuevo Usuario.");
+        await createPersonal(personalData);
+        alert('Usuario creado');
       }
 
-      resetFormularioGuardia();
+      resetFormularioPersonal();
       fetchData(); 
     } catch (err) {
       setError(err.message);
     }
   };
 
-  const handleDeleteGuardia = async (rut) => {
-    if(!window.confirm("¿Estás seguro de eliminar este guardia?")) return;
+  const handleDeletePersonal = async (rut) => {
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    if (rut === currentUser.rut) {
+      alert("No puedes eliminar tu propio usuario.");
+      return;
+    }
+
+    if(!window.confirm("¿Estás seguro de eliminar este usuario?")) return;
     try {
-      await deleteGuardia(rut);
-      alert('Guardia eliminado');
+      await deletePersonal(rut);
+      alert('Usuario eliminado');
       fetchData();
     } catch (err) {
       setError(err.message);
@@ -239,6 +256,13 @@ function AdminDashboard() {
     localStorage.removeItem('user');
     navigate('/login');
   };
+
+  const personalFiltrado = Personal.filter(p => {
+    //muestra todos
+    if(filtroRol === 'todos') return true;
+    //filtra por rol
+    return p.role === filtroRol;
+  });
 
   if (loading) return <div>Cargando panel...</div>;
   if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
@@ -260,10 +284,10 @@ function AdminDashboard() {
                 🚲 Bicicleteros
             </button>
             <button 
-                className={`menu-item ${activeTab === 'guardias' ? 'active' : ''}`}
-                onClick={() => setActiveTab('guardias')}
+                className={`menu-item ${activeTab === 'Personal' ? 'active' : ''}`}
+                onClick={() => setActiveTab('Personal')}
             >
-                👮 Guardias
+                👮 Personal
             </button>
         </nav>
 
@@ -277,56 +301,79 @@ function AdminDashboard() {
       {/* --- CONTENIDO PRINCIPAL --- */}
       <main className="main-content">
         
-        {/* VISTA: GESTIÓN DE GUARDIAS */}
-        {activeTab === 'guardias' && (
+        {/* VISTA: GESTIÓN DE Personal */}
+        {activeTab === 'Personal' && (
             <div className="content-section fade-in">
                 <div className="section-header">
-                    <h2>Gestión de Guardias</h2>
+                    <h2>Gestión de Personal</h2>
                 </div>
                 
                 <div className="card-container">
-                    <form onSubmit={handleGuardiaSubmit} className="admin-form grid-2-col">
+                    <form onSubmit={handlePersonalSubmit} className="admin-form grid-2-col">
                         <div>
                             <label>RUT:</label>
                             <input 
                                 type="text" 
-                                value={gRut} 
-                                onChange={e => setGRut(e.target.value)} 
-                                disabled={!!editarGuardiaRut} 
+                                value={pRut} 
+                                onChange={e => setpRut(e.target.value)} 
+                                disabled={!!editarPersonalRut} 
                                 required 
                                 placeholder="Ej: 12345678-9"
                             />
                         </div>
                         <div>
                             <label>Email:</label>
-                            <input type="email" value={gEmail} onChange={e => setGEmail(e.target.value)} required />
+                            <input type="email" value={pGmail} onChange={e => setpGmail(e.target.value)} required />
                         </div>
+
                         <div>
                             <label>Nombre:</label>
-                            <input type="text" value={gNombre} onChange={e => setGNombre(e.target.value)} required />
+                            <input type="text" value={pNombre} onChange={e => setpNombre(e.target.value)} required />
                         </div>
+
                         <div>
                             <label>Apellido:</label>
-                            <input type="text" value={gApellido} onChange={e => setGApellido(e.target.value)} required />
+                            <input type="text" value={pApellido} onChange={e => setpApellido(e.target.value)} required />
                         </div>
+
+                        <div>
+                          <label>Rol:</label>
+                          <select value={pRole} onChange={e => setpRole(e.target.value)}>
+                            <option value="guardia">Guardia</option>
+                            <option value="admin">Administrador</option>
+                          </select> 
+                        </div>
+
                         <div>
                             <label>Contraseña:</label>
                             <input 
                                 type="password" 
-                                value={gPassword} 
-                                onChange={e => setGPassword(e.target.value)} 
-                                placeholder={editarGuardiaRut ? "(Dejar en blanco para mantener)" : "Requerida"}
+                                value={pPassword} 
+                                onChange={e => setpPassword(e.target.value)} 
+                                placeholder={editarPersonalRut ? "(Dejar en blanco para mantener)" : "Requerida"}
                             />
                         </div>
+
                         <div className="full-width actions">
-                            <button type="submit" className="btn-primary">{editarGuardiaRut ? 'Actualizar Guardia' : 'Crear Guardia'}</button>
-                            <button type="button" onClick={resetFormularioGuardia} className="btn-secondary">Cancelar</button>
+                            <button type="submit" className="btn-primary">{editarPersonalRut ? 'Actualizar Personal' : 'Crear Personal'}</button>
+                            <button type="button" onClick={resetFormularioPersonal} className="btn-secondary">Cancelar</button>
                         </div>
                     </form>
                 </div>
 
                 <div className="table-container">
-                    <h3>Lista de Guardias</h3>
+                  <div style ={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
+                    <h3>Lista de Personal</h3>
+                    <div>
+                      <label style ={{marginRight: '10px'}} >Filtrar por:</label>
+                      <select value={filtroRol} onChange={e => setFiltroRol(e.target.value)}>
+                        <option value="">Todos</option>
+                        <option value="guardia">Guardia</option>
+                        <option value="admin">Administrador</option>
+                      </select>
+                    </div>
+                  </div>
+
                     <table className="data-table">
                         <thead>
                             <tr>
@@ -338,21 +385,30 @@ function AdminDashboard() {
                             </tr>
                         </thead>
                         <tbody>
-                            {guardias.length > 0 ? (
-                                guardias.map(g => (
-                                    <tr key={g.rut}>
-                                        <td>{g.rut}</td>
-                                        <td>{g.nombre}</td>
-                                        <td>{g.apellido}</td>
-                                        <td>{g.email}</td>
+                            {personalFiltrado.length > 0 ? (
+                                personalFiltrado.map(p => (
+                                    <tr key={p.rut}>
+                                        <td>{p.rut}</td>
+                                        <td>{p.nombre}</td>
+                                        <td>{p.apellido}</td>
+                                        <td>{p.email}</td>
                                         <td>
-                                            <button className="btn-edit" onClick={() => handleEditGuardiaClick(g)}>Editar</button>
-                                            <button className="btn-delete" onClick={() => handleDeleteGuardia(g.rut)}>Eliminar</button>
+                                          <span style = {{
+                                            padding: '4px 8px', borderRadius: '12px', frontSize: '0.85rem', fontWeight: 'bold',
+                                            backgroundColor: p.role ==='admin' ? '#e3f2fd' : '#fff3e0',
+                                            color: p.role ==='admin' ? '#1565c0' : '#e65100'
+                                          }}>
+                                          {p.role === 'admin'?'Administrador':'Guardia'}
+                                          </span>
+                                        </td>
+                                        <td>
+                                            <button className="btn-edit" onClick={() => handleEditPersonalClick(p)}>Editar</button>
+                                            <button className="btn-delete" onClick={() => handleDeletePersonal(p.rut)}>Eliminar</button>
                                         </td>
                                     </tr>
                                 ))
                             ) : (
-                                <tr><td colSpan="5">No hay guardias registrados</td></tr>
+                                <tr><td colSpan="5">No hay usuarios registrados</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -437,9 +493,9 @@ function AdminDashboard() {
                             </div>
                             <div>
                                 <label>Guardia Asignado: </label>
-                                <select value={guardiaId} onChange={(e) => setGuardiaId(e.target.value)}>
+                                <select value={guardiaId} onChange={(e) => setguardiaId(e.target.value)}>
                                     <option value="">(Ninguno)</option>
-                                    {guardias.map(g => (
+                                    {Personal.filter(p => p.role === 'guardia').map(g => (
                                     <option key={g.rut} value={g.rut}>{g.nombre} {g.apellido}</option>
                                     ))}
                                 </select>
