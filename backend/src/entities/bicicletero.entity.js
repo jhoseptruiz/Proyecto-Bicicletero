@@ -15,11 +15,6 @@ export const Bicicletero = new EntitySchema({
       length: 255,
       nullable: false,
     },
-    capacidad: {
-      type: "int",
-      nullable: false,
-    },
-    // Nuevos campos para Georreferencia y QR (Requisito Alumno)
     latitud: {
       type: "decimal",
       precision: 10,
@@ -32,6 +27,11 @@ export const Bicicletero = new EntitySchema({
       scale: 8,
       nullable: true,
     },
+    capacidad: {
+      type: "int",
+      nullable: false,
+    },
+    // Nuevos campos para Georreferencia y QR (Requisito Alumno)
     codigoQr: {
       type: "varchar",
       length: 255,

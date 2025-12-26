@@ -1,21 +1,32 @@
 import { Router } from "express";
-import { getMisBicicleteros } from "../controllers/guardia.controller.js";
+import { 
+    getMisBicicleteros, 
+    getSolicitudes, 
+    postAprobarIngreso, 
+    postRechazarIngreso,
+    getActivos,
+    postFinalizarSalida,
+    putModificarUbicacion
+} from "../controllers/guardia.controller.js";
 import { verificarToken, checkRol } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-// --- Protección de Ruta ---
-// Solo usuarios con token válido y rol 'guardia' pueden pasar
 router.use(verificarToken, checkRol(['guardia']));
 
-// --- Definición de Endpoints ---
-
-// GET /api/guardia/mis-bicicleteros
+// 1. Ver mis bicicleteros (ya lo tenías)
 router.get("/mis-bicicleteros", getMisBicicleteros);
 
-// Aquí irían los futuros endpoints de 'aprobar', 'rechazar', etc.
-// router.post("/ingreso/:id/aprobar", ...)
-// router.post("/egreso/:id/finalizar", ...)
+// 2. Gestionar Ingresos (Solicitudes Pendientes)
+router.get("/bicicletero/:bicicleteroId/solicitudes", getSolicitudes);
+router.post("/ingreso/:id/aprobar", postAprobarIngreso); // Body: { casillero: "A1" }
+router.post("/ingreso/:id/rechazar", postRechazarIngreso);
 
+// 3. Gestionar Egresos y Activos
+router.get("/bicicletero/:bicicleteroId/activos", getActivos);
+router.post("/egreso/:id/finalizar", postFinalizarSalida);
+
+// 4. Modificar (Reubicar)
+router.put("/registro/:id/ubicacion", putModificarUbicacion); // Body: { nuevoCasillero: "B2" }
 
 export default router;

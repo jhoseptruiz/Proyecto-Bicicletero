@@ -12,7 +12,7 @@ export async function AllBicicleteros() {
 
 //crear bicicletero
 export async function CrearBicicletero(data) {
-    const {ubicacion, capacidad, estado, horaApertura, horaCierre, guardiaId}= data;
+    const {ubicacion, capacidad, estado, horaApertura, horaCierre, guardiaId, latitud, longitud}= data;
     let guardia = null;
     if(guardiaId){
         guardia = await userRepo.findOneBy({rut: guardiaId, role:"guardia"});
@@ -27,6 +27,8 @@ export async function CrearBicicletero(data) {
         estado,
         horaApertura: horaApertura,
         horaCierre: horaCierre,
+        latitud,
+        longitud,
         guardiaAsignado: guardia,
     });
 
@@ -63,3 +65,11 @@ export async function ActualizarBicicletero(id,data){
 }
 
 //deleteBicicletero  
+export async function EliminarBicicletero(id){
+    const bicicletero = await bicicleteroRepo.findOneBy({id: parseInt(id)});
+    if(!bicicletero){
+        throw new Error("Bicicletero no encontrado");
+    }
+    return await bicicleteroRepo.remove(bicicletero);
+}
+

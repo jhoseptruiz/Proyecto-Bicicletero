@@ -26,3 +26,12 @@ export const ActualizarBicicletero = async(id, data) =>{
         throw new Error(error.response?.data?.message || 'Error al actualizar bicicletero');
     }
 };
+
+export const deleteBicicletero = async(id) =>{
+    try{
+        const response = await apiClient.delete(`/bicicleteros/${id}`);
+        return response.data;
+    } catch (error){
+        throw new Error(error.response?.data?.message || 'Error al eliminar bicicletero');
+    }   
+};
