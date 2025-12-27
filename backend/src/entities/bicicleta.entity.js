@@ -15,10 +15,10 @@ export const Bicicleta = new EntitySchema({
       length: 100,
       nullable: false,
     },
-    fotoUrl:{
-        type: "varchar",
-        length: 500,
-        nullable: true,
+    fotoUrl: {
+      type: "varchar",
+      length: 500,
+      nullable: true,
     },
   },
   relations: {
@@ -27,6 +27,11 @@ export const Bicicleta = new EntitySchema({
       target: "User",
       joinColumn: { name: "propietarioRut" },
       inverseSide: "bicicletas",
+    },
+    usos: {
+      type: "one-to-many",
+      target: "RegistroUso",
+      inverseSide: "bicicleta",
     },
   },
 });

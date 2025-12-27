@@ -25,22 +25,37 @@ export async function crearBicicleta(data, usuarioRut) {
 }
 
 export async function findMisBicicletas(usuarioRut) {
-  return await bicicletaRepo.find({
+  const bicis = await bicicletaRepo.find({
     where: {
-      propietario: {
-        rut: usuarioRut,
-      },
+      propietario: { rut: usuarioRut },
     },
+    relations: ["usos", "usos.bicicletero"],
+  });
+
+  // Mapeamos para indicar si está guardada y DÓNDE
+  return bicis.map(b => {
+    const usoActivo = b.usos?.find(u => u.fechaSalida === null);
+    return {
+      ...b,
+      usos: undefined,
+      estadoActual: usoActivo ? {
+        estaAdentro: true,
+        bicicleteroId: usoActivo.bicicletero.id,
+        ubicacion: usoActivo.bicicletero.ubicacion // Para mostrar "En Biblioteca", etc.
+      } : {
+        estaAdentro: false
+      }
+    };
   });
 }
 
 export async function actualizarBicicleta(id, usuarioRut, updateData) {
   const bicicleta = await bicicletaRepo.findOne({ where: { id }, relations: ['propietario'] });
-  
+
   if (!bicicleta) {
     throw new Error("Bicicleta no encontrada.");
   }
-  
+
   if (bicicleta.propietario.rut !== usuarioRut) {
     throw new Error("No estás autorizado para modificar esta bicicleta.");
   }
@@ -62,7 +77,7 @@ export async function actualizarBicicleta(id, usuarioRut, updateData) {
 
 export async function eliminarBicicleta(id, usuarioRut) {
   const bicicleta = await bicicletaRepo.findOne({ where: { id }, relations: ['propietario'] });
-  
+
   if (!bicicleta) {
     throw new Error("Bicicleta no encontrada.");
   }
@@ -81,6 +96,6 @@ export async function eliminarBicicleta(id, usuarioRut) {
       console.error("Error al eliminar el archivo de la foto:", err.message);
     }
   }
-  
+
   return await bicicletaRepo.remove(bicicleta);
 }
