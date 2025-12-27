@@ -1,12 +1,12 @@
 import { AppDataSource } from "../config/configDb.js";
 import { Bicicletero } from "../entities/bicicletero.entity.js";
-import { UsoBicicletero } from "../entities/uso_bicicletero.entity.js";
+import { RegistroUso } from "../entities/registroUso.entity.js";
 import { User } from "../entities/user.entity.js";
 import { Bicicleta } from "../entities/bicicleta.entity.js";
 import { calcularDistancia } from "../utils/geoUtils.js";
 
 // Repositorios
-const usoRepo = AppDataSource.getRepository(UsoBicicletero);
+const usoRepo = AppDataSource.getRepository(RegistroUso);
 const bicicleteroRepo = AppDataSource.getRepository(Bicicletero);
 const userRepo = AppDataSource.getRepository(User);
 const bicicletaRepo = AppDataSource.getRepository(Bicicleta);
@@ -15,7 +15,7 @@ const bicicletaRepo = AppDataSource.getRepository(Bicicleta);
 const MAX_DISTANCIA_METROS = 50;
 
 /**
- * Valida y crea una solicitud de ingreso (Estado: ESPERANDO_CONFIRMACION).
+ * Valida y crea una solicitud de ingreso (Estado: pendiente).
  * Revisa: Existencia user/bici, ubicación GPS, QR válido, horario y capacidad.
  */
 export async function crearSolicitudIngreso(rutAlumno, codigoQr, lat, lng, bicicletaId) {
@@ -72,9 +72,6 @@ export async function crearSolicitudIngreso(rutAlumno, codigoQr, lat, lng, bicic
 
     // 5. Validar Capacidad
     // Contamos usos activos (sin fecha salida) para este bicicletero
-    // Ojo: bicicletasGuardadas en Entity es un contador cache, pero la verdad absoluta es count() en UsoBicicletero
-    // Usaremos el campo del bicicletero si confiamos en que el Guardia lo mantiene actualizado.
-    // Para ser robustos en el Taller, consultemos la tabla real.
     const ocupados = await usoRepo.count({
         where: { bicicletero: { id: bicicletero.id }, fechaSalida: null }
     });
@@ -89,7 +86,7 @@ export async function crearSolicitudIngreso(rutAlumno, codigoQr, lat, lng, bicic
         bicicleta: bicicleta,
         bicicletero: bicicletero,
         fechaIngreso: new Date(),
-        estado: "ESPERANDO_CONFIRMACION",
+        estado: "pendiente",
     });
 
     return await usoRepo.save(nuevaSolicitud);
@@ -97,7 +94,7 @@ export async function crearSolicitudIngreso(rutAlumno, codigoQr, lat, lng, bicic
 
 /**
  * Genera la solicitud de salida. 
- * Cambia el estado a SOLICITANDO_RETIRO para alertar al guardia.
+ * Cambia el estado a solicitando_retiro para alertar al guardia.
  */
 export async function crearSolicitudSalida(rutAlumno, codigoQr, lat, lng, bicicletaId) {
     // 1. Validar Usuario y que tenga la bici adentro
@@ -127,7 +124,7 @@ export async function crearSolicitudSalida(rutAlumno, codigoQr, lat, lng, bicicl
     }
 
     // 4. Actualizar Estado
-    usoActivo.estado = "SOLICITANDO_RETIRO";
+    usoActivo.estado = "solicitando_retiro";
     return await usoRepo.save(usoActivo);
 }
 
@@ -150,7 +147,7 @@ export async function obtenerEstadoSolicitud(rutAlumno) {
         id: uso.id,
         estado: uso.estado,
         bicicletero: uso.bicicletero.ubicacion,
-        casillero: uso.casilleroAsignado,
+        casillero: uso.casillero,
         horaIngreso: uso.fechaIngreso,
     };
 }
@@ -212,7 +209,8 @@ export async function obtenerEstadoBicicleteros() {
             ocupados: ocupados,
             disponibles: bici.capacidad - ocupados,
             estado: estadoMapa, // Para pintar colores en el mapa
-            horario: `${bici.horaApertura} - ${bici.horaCierre}`
+            horario: `${bici.horaApertura} - ${bici.horaCierre}`,
+            codigoQr: bici.codigoQr // Exposed for "Click to Scan" logic
         };
     }));
 

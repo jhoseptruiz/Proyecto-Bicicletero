@@ -10,7 +10,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import GuardiaPanel from './pages/GuardiaPanel';
 import AlumnoHome from './pages/AlumnoHome';
 import PerfilPage from './pages/PerfilPage.jsx';
-import Scanner from './components/Scanner.jsx';
+import Scanner from './components/alumno/Scanner.jsx';
 
 function App() {
   return (

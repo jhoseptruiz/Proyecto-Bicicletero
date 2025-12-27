@@ -1,11 +1,15 @@
 // frontend/src/pages/AlumnoHome.jsx
 
-import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import StatusCheckin from '../components/StatusCheckin';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import EstadoCheckin from '../components/alumno/EstadoCheckin';
+import MapaAlumno from '../components/alumno/MapaAlumno';
+import SidebarAlumno from '../components/alumno/SidebarAlumno';
+import './AdminDashboard.css'; // Reutilizamos estilos del Admin para consistencia
 
 function AlumnoHome() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -13,25 +17,54 @@ function AlumnoHome() {
     navigate('/login');
   };
 
+  const handleTabChange = (tab) => {
+    if (tab === 'perfil') {
+      navigate('/perfil');
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
   return (
-    <div style={{ padding: '20px' }}>
-      <button onClick={handleLogout} style={{ float: 'right' }}>Cerrar Sesión</button>
-      <h1>Plataforma de Alumno</h1>
+    <div className="admin-layout">
+      {/* Sidebar con estilo unificado */}
+      <SidebarAlumno
+        activeTab={activeTab}
+        setActiveTab={handleTabChange}
+        onLogout={handleLogout}
+      />
 
-      <div style={{ marginBottom: '20px' }}>
-        <Link to="/perfil">
-          <button style={{ marginRight: '10px' }}>Mi Perfil</button>
-        </Link>
-        <Link to="/scan">
-          <button style={{ backgroundColor: '#007bff', color: 'white' }}>📷 Escanear QR</button>
-        </Link>
-      </div>
+      <main className="main-content">
 
-      <hr />
+        {activeTab === 'dashboard' && (
+          <div className="bicicleteros-layout fade-in">
 
-      <StatusCheckin />
+            {/* Columna Izquierda: Mapa (2/3) */}
+            <div className="map-column">
+              <div className="card-container" style={{ height: 'calc(100vh - 180px)', padding: 0, overflow: 'hidden' }}>
+                <MapaAlumno />
+              </div>
+            </div>
 
-      <p style={{ marginTop: '20px' }}>Bienvenido, Alumno. Aquí verás el mapa de bicicleteros.</p>
+            {/* Columna Derecha: Estado (1/3) */}
+            <div className="form-column">
+              <div className="admin-form card-container">
+                <h3>Estado Actual</h3>
+                <EstadoCheckin />
+              </div>
+            </div>
+
+            {/* Botón Flotante para Escaneo */}
+            <div className="fab-container">
+              <button className="fab-button" onClick={() => navigate('/scan')}>
+                📷 Escanear QR
+              </button>
+            </div> // Reemplaza imports y comentarios a español
+
+
+          </div>
+        )}
+      </main>
     </div>
   );
 }

@@ -24,7 +24,7 @@ export const RegistroUso = new EntitySchema({
     },
     estado: {
       type: "enum",
-      enum: ["pendiente", "activo", "finalizado", "rechazado"],
+      enum: ["pendiente", "activo", "finalizado", "rechazado", "solicitando_retiro"],
       default: "pendiente",
     },
   },

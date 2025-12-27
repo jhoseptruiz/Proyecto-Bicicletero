@@ -30,7 +30,7 @@ export const Bicicleta = new EntitySchema({
     },
     usos: {
       type: "one-to-many",
-      target: "UsoBicicletero",
+      target: "RegistroUso",
       inverseSide: "bicicleta",
     },
   },

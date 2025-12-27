@@ -1,24 +1,39 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { getMisBicicletas } from '../services/bicicleta.service';
-import { scanQr, validateQr } from '../services/checkin.service';
-import { Link } from 'react-router-dom';
+import { getMisBicicletas } from '../../services/bicicleta.service';
+import { scanQr, validateQr } from '../../services/checkin.service';
+import { Link, useLocation } from 'react-router-dom';
 
 function Scanner() {
-  // Estados de Flujo: 'WAITING' | 'SCANNING' | 'DECIDING' | 'PROCESSING' | 'RESULT'
+  // Estados de Flujo: 'WAITING' (Esperando) | 'SCANNING' (Escaneando) | 'DECIDING' (Decidiendo) | 'PROCESSING' (Procesando) | 'RESULT' (Resultado)
   const [step, setStep] = useState('WAITING');
 
   const [bicicletas, setBicicletas] = useState([]);
   const [contextData, setContextData] = useState(null); // Datos del bicicletero escaneado
   const [selectedBicicleta, setSelectedBicicleta] = useState('');
   const [mensaje, setMensaje] = useState(null);
+  const [expectedQr, setExpectedQr] = useState(null); // Validación de seguridad: QR esperado
 
   const scannerRef = useRef(null);
+  const location = useLocation();
 
   useEffect(() => {
     cargarBicicletas();
-    return () => stopScanner();
+
+    if (location.state?.preSelectedBicicletero) {
+      // Flujo estricto: Si viene del mapa, iniciamos escaneo esperando SOLO ese QR
+      handlePreSelected(location.state.preSelectedBicicletero);
+    } else {
+      // Limpieza normal si no hay preselección
+      return () => stopScanner();
+    }
   }, []);
+
+  const handlePreSelected = (bicicletero) => {
+    setExpectedQr(bicicletero.codigoQr);
+    setMensaje({ tipo: 'info', texto: `Por favor escanea el QR de: ${bicicletero.ubicacion}` });
+    startScanner(); // Iniciamos camara forzosamente
+  };
 
   const cargarBicicletas = async () => {
     try {
@@ -32,7 +47,6 @@ function Scanner() {
   // --- PASO 1: INICIAR ESCANEO ---
   const startScanner = () => {
     setStep('SCANNING');
-    setMensaje(null);
     setContextData(null);
 
     setTimeout(() => {
@@ -59,6 +73,12 @@ function Scanner() {
     setMensaje({ tipo: 'info', texto: "Verificando QR y Ubicación..." });
 
     try {
+      // VALIDACION DE SEGURIDAD (ANTI-SPOOFING)
+      // Aseguramos que el alumno esté físicamente escaneando el QR que seleccionó en el mapa.
+      if (expectedQr && decodedText !== expectedQr) {
+        throw new Error("El QR escaneado no corresponde al bicicletero seleccionado en el mapa.");
+      }
+
       // 1. Validar QR con Backend
       const validation = await validateQr(decodedText);
       const bicicletero = validation.data;
@@ -85,7 +105,7 @@ function Scanner() {
 
     } catch (error) {
       setMensaje({ tipo: 'error', texto: error.message || "QR Inválido" });
-      setStep('WAITING');
+      setStep('WAITING'); // Volver a permitir intento si falla
     }
   };
 
