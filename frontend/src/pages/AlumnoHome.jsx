@@ -59,7 +59,7 @@ function AlumnoHome() {
               <button className="fab-button" onClick={() => navigate('/scan')}>
                 📷 Escanear QR
               </button>
-            </div> // Reemplaza imports y comentarios a español
+            </div>
 
 
           </div>
