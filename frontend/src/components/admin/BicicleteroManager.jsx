@@ -35,7 +35,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
     switch (estado) {
       case 'operativo': return 'green';
       case 'mantenimiento': return 'orange';
-      case 'fuera_de_Servicio': return 'red';
+      case 'fuera_de_Servicio': return 'black';
       default: return 'gray';
     }
   };
@@ -279,7 +279,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
               <option value="todos">Todos</option>
               <option value="operativo">Operativo</option>
               <option value="mantenimiento">Mantenimiento</option>
-              <option value="fuera_de_servicio">Fuera de servicio</option>
+              <option value="fuera_de_Servicio">Fuera de servicio</option>
             </select>
           </div>
         </div>
