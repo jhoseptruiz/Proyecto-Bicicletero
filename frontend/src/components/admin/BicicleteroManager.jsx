@@ -7,7 +7,7 @@ import QRCode from 'qrcode';
 function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [error, setError] = useState('');
-  
+
   // Estado Mapa 
   const [viewState, setViewState] = useState({
     longitude: -73.0134,
@@ -65,7 +65,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
       }
       return inside;
     };
-    
+
     const estaDentro = puntoLimite(lat, lng, limitesUBB);
     if (!estaDentro) {
       alert("El bicicletero debe estar dentro del campus UBB");
@@ -232,6 +232,16 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
               <label>Ubicación: </label>
               <input type="text" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} required />
             </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <label>Latitud: </label>
+                <input type="number" step="any" value={marcaLocalizacion.lat} onChange={(e) => setMarcaLocalizacion({ ...marcaLocalizacion, lat: parseFloat(e.target.value) })} required />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label>Longitud: </label>
+                <input type="number" step="any" value={marcaLocalizacion.lng} onChange={(e) => setMarcaLocalizacion({ ...marcaLocalizacion, lng: parseFloat(e.target.value) })} required />
+              </div>
+            </div>
             <div>
               <label>Capacidad: </label>
               <input type="number" value={capacidad} onChange={(e) => setCapacidad(e.target.value)} required min={0} max={15} />
@@ -309,8 +319,8 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
                   <td>{b.guardiaAsignado ? `${b.guardiaAsignado.nombre}` : '-'}</td>
                   <td>
                     <button className="btn-edit" onClick={() => handleEditClick(b)}>Editar</button>
-                    <button className="btn-primary" style={{ padding: '5px 10px', fontSize: '0.9rem', backgroundColor: '#6c757d' }} 
-                    onClick={() => handleVerQR(b)}>Ver QR</button>
+                    <button className="btn-primary" style={{ padding: '5px 10px', fontSize: '0.9rem', backgroundColor: '#6c757d' }}
+                      onClick={() => handleVerQR(b)}>Ver QR</button>
                     <button className="btn-delete" onClick={() => handleDeleteBicicletero(b.id)}>Eliminar</button>
                   </td>
                 </tr>
@@ -323,24 +333,24 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
       </div>
       {showQrModal && (
         <div className="modal-overlay" onClick={cerrarModal}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <button className="btn-close" onClick={cerrarModal}>×</button>
-                <h3 style={{marginTop: 0, color: '#2c3e50'}}>Código QR Bicicletero</h3>
-                <p style={{ color: '#666' }}>{selectedBicicletero?.ubicacion}</p>
-                
-                <div className="qr-display-container">
-                    {qrUrl && <img src={qrUrl} alt="QR Code" className="qr-image" />}
-                </div>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button className="btn-close" onClick={cerrarModal}>×</button>
+            <h3 style={{ marginTop: 0, color: '#2c3e50' }}>Código QR Bicicletero</h3>
+            <p style={{ color: '#666' }}>{selectedBicicletero?.ubicacion}</p>
 
-                <div className="modal-actions">
-                    <button className="btn-primary" onClick={handleDescargarQR}>
-                        ⬇ Descargar
-                    </button>
-                    <button className="btn-secondary" onClick={cerrarModal}>
-                        Cerrar
-                    </button>
-                </div>
+            <div className="qr-display-container">
+              {qrUrl && <img src={qrUrl} alt="QR Code" className="qr-image" />}
             </div>
+
+            <div className="modal-actions">
+              <button className="btn-primary" onClick={handleDescargarQR}>
+                ⬇ Descargar
+              </button>
+              <button className="btn-secondary" onClick={cerrarModal}>
+                Cerrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -23,12 +23,14 @@ const MapaAlumno = ({ onMarkerClick }) => {
             try {
                 const response = await getMapData();
                 if (response.data) {
-                    setBicicleteros(response.data);
+                    // FILTRO: Solo mostrar Disponibles y Llenos (Ocultar Mantenimiento)
+                    const visibles = response.data.filter(b => b.estado !== 'MANTENIMIENTO');
+                    setBicicleteros(visibles);
 
                     // Ajuste automático de límites (Bounds)
-                    if (response.data.length > 0) {
+                    if (visibles.length > 0) {
                         const bounds = new mapboxgl.LngLatBounds();
-                        response.data.forEach(b => {
+                        visibles.forEach(b => {
                             if (b.longitud && b.latitud) {
                                 bounds.extend([parseFloat(b.longitud), parseFloat(b.latitud)]);
                             }

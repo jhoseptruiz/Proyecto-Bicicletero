@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { getMisBicicletas } from '../../services/bicicleta.service';
-import { scanQr, validateQr } from '../../services/checkin.service';
+import { scanQr, validateQr, obtenerEstadoBicicletero } from '../../services/checkin.service';
 import { useLocation } from 'react-router-dom';
 
 function Scanner({ alCerrar, alIrAlPerfil }) {
@@ -12,7 +12,58 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
   const [contextData, setContextData] = useState(null); // Datos del bicicletero escaneado
   const [selectedBicicleta, setSelectedBicicleta] = useState('');
   const [mensaje, setMensaje] = useState(null);
-  const [expectedId, setExpectedId] = useState(null); // CAMBIO: Validamos por ID, no por string completo
+  const [expectedId, setExpectedId] = useState(null);
+
+  // Helper para distancia (Haversine simple)
+  const calcularDistancia = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // Radio tierra (metros)
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const verificarCondiciones = (detalles, userLat, userLng) => {
+    // 1. Estado Operativo
+    if (detalles.estado && detalles.estado !== 'operativo') {
+      throw new Error(`Este bicicletero está ${detalles.estado} (No operativo).`);
+    }
+
+    // 2. Horario
+    if (detalles.horaApertura && detalles.horaCierre) {
+      const ahora = new Date();
+      const [hA, mA] = detalles.horaApertura.split(':');
+      const [hC, mC] = detalles.horaCierre.split(':');
+      const minutosActual = ahora.getHours() * 60 + ahora.getMinutes();
+      const minutosApertura = parseInt(hA) * 60 + parseInt(mA);
+      const minutosCierre = parseInt(hC) * 60 + parseInt(mC);
+
+      if (minutosActual < minutosApertura || minutosActual > minutosCierre) {
+        throw new Error(`El bicicletero está cerrado. Horario: ${detalles.horaApertura} - ${detalles.horaCierre}`);
+      }
+    }
+
+    // 3. Distancia (50 metros)
+    if (detalles.latitud && detalles.longitud) {
+      const latBici = parseFloat(detalles.latitud);
+      const lngBici = parseFloat(detalles.longitud);
+
+      const dist = calcularDistancia(userLat, userLng, latBici, lngBici);
+
+      if (dist > 50) {
+        throw new Error(`Estás demasiado lejos (${Math.round(dist)}m). Acércate al bicicletero.`);
+      }
+    }
+
+    // 4. Capacidad (Opcional: Solo advertencia por ahora, ya que podría estar saliendo)
+    if (detalles.disponibles <= 0) {
+      // No bloqueamos aquí, porque quizás quiere RETIRAR. La lógica de retiro validará después.
+      // Pero podríamos mostrar un aviso.
+    }
+  };
 
   const scannerRef = useRef(null);
   const location = useLocation();
@@ -72,55 +123,82 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
   const onScanSuccess = async (decodedText) => {
     stopScanner();
     setStep('PROCESSING');
-    setMensaje({ tipo: 'info', texto: "Verificando QR y Ubicación..." });
+    setMensaje({ tipo: 'info', texto: "Verificando condiciones del bicicletero..." });
 
     try {
-      // 1. Intentamos Parsear el JSON del QR
+      // 1. Parsear JSON
       let datosQr;
-      try {
-        datosQr = JSON.parse(decodedText);
-      } catch (e) {
-        throw new Error("El código QR escaneado no es válido (formato incorrecto).");
-      }
+      try { datosQr = JSON.parse(decodedText); }
+      catch (e) { throw new Error("Código QR con formato inválido."); }
 
-      // 2. Validar que sea un QR de bicicletero
+      // 2. Validar estructura
       if (!datosQr.id || datosQr.tipo !== 'bicicletero_ubicacion') {
-        throw new Error("Este QR no corresponde a un bicicletero del sistema.");
+        throw new Error("QR desconocido. Usa solo QRs de bicicleteros oficiales.");
       }
 
-      // 3. Validación de seguridad (si venía del mapa)
-      // Comparamos IDs en lugar de strings completos para evitar errores de formato
+      // 3. Validar coincidencia con Mapa (si vino del mapa)
       if (expectedId && parseInt(datosQr.id) !== parseInt(expectedId)) {
-        throw new Error("El QR escaneado no corresponde al bicicletero seleccionado en el mapa.");
+        throw new Error("Este QR no es el que seleccionaste en el mapa.");
       }
 
-      if (!navigator.geolocation) throw new Error("GPS no soportado en este dispositivo.");
+      // 4. Obtener GPS del usuario
+      if (!navigator.geolocation) throw new Error("GPS no disponible. Actívalo para continuar.");
 
       navigator.geolocation.getCurrentPosition(
         async (position) => {
-          // CORRECCIÓN: Usamos 'datosQr' y no la variable inexistente 'bicicletero'
-          setContextData({
-            qrRaw: decodedText, // Guardamos el texto original por si acaso
-            id: datosQr.id,
-            ubicacion: datosQr.ubicacion || `Bicicletero #${datosQr.id}`, // Fallback si no viene nombre
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
+          try {
+            const userLat = position.coords.latitude;
+            const userLng = position.coords.longitude;
 
-          setStep('DECIDING');
-          setMensaje(null);
+            // 5. CONSULTA AL SERVIDOR (Fuente de Verdad)
+            const detalles = await obtenerEstadoBicicletero(datosQr.id);
+
+            // 6. Validaciones Estrictas (Fail Fast)
+            verificarCondiciones(detalles.data || detalles, userLat, userLng);
+
+            // Si pasa todo, avanzamos
+            setContextData({
+              id: datosQr.id,
+              ubicacion: datosQr.ubicacion || `Bicicletero #${datosQr.id}`,
+              lat: userLat,
+              lng: userLng
+            });
+
+            setStep('DECIDING');
+            setMensaje(null);
+
+          } catch (backendError) {
+            setMensaje({ tipo: 'error', texto: backendError.message || "Error validando bicicletero." });
+            setStep('WAITING');
+          }
         },
-        (err) => {
-          console.error(err);
-          setMensaje({ tipo: 'error', texto: "Error obteniendo ubicación GPS. Asegúrate de activarla." });
+        (gpsError) => {
+          let errorMsg = "No pudimos obtener tu ubicación.";
+          switch (gpsError.code) {
+            case gpsError.PERMISSION_DENIED:
+              errorMsg = "❌ Permiso de GPS denegado. Actívalo en el navegador.";
+              break;
+            case gpsError.POSITION_UNAVAILABLE:
+              errorMsg = "📡 Señal GPS débil o no disponible.";
+              if (!window.isSecureContext) {
+                errorMsg += " (Nota: El GPS requiere HTTPS o Localhost).";
+              }
+              break;
+            case gpsError.TIMEOUT:
+              errorMsg = "⌛ El GPS tardó demasiado en responder.";
+              break;
+            default:
+              errorMsg = `Error GPS desconocido: ${gpsError.message}`;
+          }
+          setMensaje({ tipo: 'error', texto: errorMsg });
           setStep('WAITING');
         },
-        { timeout: 10000, enableHighAccuracy: true } // Opciones para mejorar GPS
+        { timeout: 15000, enableHighAccuracy: true, maximumAge: 0 }
       );
 
     } catch (error) {
       console.error(error);
-      setMensaje({ tipo: 'error', texto: error.message || "QR Inválido" });
+      setMensaje({ tipo: 'error', texto: error.message });
       setStep('WAITING');
     }
   };
@@ -129,7 +207,7 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
     // console.warn(error);
   };
 
- const ejecutarAccion = async () => {
+  const ejecutarAccion = async () => {
     if (!selectedBicicleta) {
       alert("Selecciona una bicicleta");
       return;
@@ -141,16 +219,16 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
     try {
       // CAMBIO AQUÍ: Usamos contextData.id en lugar de contextData.qrRaw
       const { id, lat, lng } = contextData;
-      
+
       // Enviamos el ID (ej: 15) como primer parámetro
       const res = await scanQr(id, lat, lng, selectedBicicleta);
-      
+
       setMensaje({ tipo: 'success', texto: res.message || "Operación exitosa" });
       setStep('RESULT');
-      cargarBicicletas(); 
+      cargarBicicletas();
     } catch (error) {
       setMensaje({ tipo: 'error', texto: error.message || "Error al procesar" });
-      setStep('DECIDING'); 
+      setStep('DECIDING');
     }
   };
 

@@ -36,7 +36,7 @@ export async function crearSolicitudIngreso(rutAlumno, bicicleteroId, lat, lng, 
     // 2. Validar Bicicletero por ID (CORREGIDO)
     // Antes buscaba por string codigoQr, ahora busca por ID primario
     const bicicletero = await bicicleteroRepo.findOne({ where: { id: bicicleteroId } });
-    
+
     if (!bicicletero) throw new Error("Bicicletero no encontrado (ID inválido).");
 
     // 3. Validar Ubicación Física (Geolocalización)
@@ -55,7 +55,7 @@ export async function crearSolicitudIngreso(rutAlumno, bicicleteroId, lat, lng, 
     } else {
         const ahora = new Date();
         const [horaActual, minActual] = [ahora.getHours(), ahora.getMinutes()];
-        
+
         const [hApertura, mApertura] = bicicletero.horaApertura.split(':').map(Number);
         const [hCierre, mCierre] = bicicletero.horaCierre.split(':').map(Number);
 
@@ -149,11 +149,11 @@ export async function obtenerEstadoSolicitud(rutAlumno) {
 // CORREGIDO: Valida buscando por ID
 export async function validarQrBicicletero(bicicleteroId) {
     const bicicletero = await bicicleteroRepo.findOne({ where: { id: bicicleteroId } });
-    
+
     if (!bicicletero) {
         throw new Error("Bicicletero no encontrado.");
     }
-    
+
     return {
         id: bicicletero.id,
         ubicacion: bicicletero.ubicacion,
@@ -208,4 +208,29 @@ export async function obtenerEstadoBicicleteros() {
     }));
 
     return estados;
+}
+
+/**
+ * Obtiene detalle único para validación rápida en escáner.
+ */
+export async function obtenerDetalleBicicletero(id) {
+    const bici = await bicicleteroRepo.findOne({ where: { id: parseInt(id) } });
+    if (!bici) throw new Error("Bicicletero no encontrado");
+
+    const ocupados = await usoRepo.count({
+        where: { bicicletero: { id: bici.id }, fechaSalida: null }
+    });
+
+    return {
+        id: bici.id,
+        ubicacion: bici.ubicacion,
+        latitud: bici.latitud,
+        longitud: bici.longitud,
+        capacidad: bici.capacidad,
+        ocupados: ocupados,
+        disponibles: bici.capacidad - ocupados,
+        estado: bici.estado, // operativo, mantencion, etc
+        horaApertura: bici.horaApertura,
+        horaCierre: bici.horaCierre
+    };
 }

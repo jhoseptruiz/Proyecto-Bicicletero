@@ -41,3 +41,13 @@ export async function validateQr(codigoQr) {
         throw error.response?.data || { message: "QR Inválido o desconocido" };
     }
 }
+
+// GET /api/checkin/bicicletero/:id
+export async function obtenerEstadoBicicletero(id) {
+    try {
+        const response = await apiClient.get(`/checkin/bicicletero/${id}`);
+        return response.data; // { estado, capacidad, ocupados, ... }
+    } catch (error) {
+        throw error.response?.data || { message: "Error al obtener detalles" };
+    }
+}

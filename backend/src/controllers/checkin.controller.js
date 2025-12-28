@@ -4,7 +4,9 @@ import {
     obtenerEstadoSolicitud,
     obtenerEstadoBicicleteros,
     verificarBicicletaEnBicicletero,
-    validarQrBicicletero
+
+    validarQrBicicletero,
+    obtenerDetalleBicicletero
 } from "../services/checkin.service.js";
 import { handleSuccess, handleErrorClient, handleErrorServer } from "../Handlers/responseHandlers.js";
 
@@ -85,5 +87,19 @@ export async function getMapData(req, res) {
         handleSuccess(res, 200, "Datos del mapa recuperados", data);
     } catch (error) {
         handleErrorServer(res, 500, "Error al cargar mapa", error.message);
+    }
+}
+
+
+/**
+ * Obtiene detalle de un bicicletero específico para validación (scan).
+ */
+export async function getBicicleteroDetail(req, res) {
+    try {
+        const { id } = req.params;
+        const data = await obtenerDetalleBicicletero(id);
+        handleSuccess(res, 200, "Detalle obtenido", data);
+    } catch (error) {
+        handleErrorClient(res, 404, error.message);
     }
 }
