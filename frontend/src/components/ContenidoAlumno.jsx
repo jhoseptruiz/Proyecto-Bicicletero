@@ -8,8 +8,10 @@ function ContenidoAlumno({ alIrAlPerfil }) {
     const [view, setView] = useState('dashboard'); // 'dashboard' | 'scan'
     const [scanProps, setScanProps] = useState({}); // Para pasar datos como preSelectedBicicletero
 
+    const [portalContainer, setPortalContainer] = useState(null);
 
     useEffect(() => {
+        const slot = document.getElementById('mobile-action-slot');
         if (slot) {
             setPortalContainer(slot);
         } else {

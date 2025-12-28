@@ -15,7 +15,7 @@ import Solicitudes from '../components/guardia/Solicitudes';
 import EnCustodia from '../components/guardia/EnCustodia';
 import CasilleroModal from '../components/guardia/CasilleroModal';
 import ConfirmModal from '../components/guardia/ConfirmModal';
-import AlumnoContent from '../components/AlumnoContent';
+import ContenidoAlumno from '../components/ContenidoAlumno';
 import PerfilContent from '../components/PerfilContent';
 
 import './AdminDashboard.css';
@@ -303,7 +303,7 @@ const GuardiaPanel = () => {
 
         {activeTab === 'perfil' && <PerfilContent />}
         {activeTab === 'ir_a_alumno' && (
-          <AlumnoContent onGoToProfile={() => setActiveTab('perfil')} />
+          <ContenidoAlumno alIrAlPerfil={() => setActiveTab('perfil')} />
         )}
 
       </main>

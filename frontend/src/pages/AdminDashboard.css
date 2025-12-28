@@ -603,10 +603,23 @@
 /* Ocultar móvil en escritorio */
 @media (min-width: 769px) {
 
-    .mobile-nav-wrapper,
+    /* Show wrapper as contents so sidebar is visible */
+    .mobile-nav-wrapper {
+        display: contents !important;
+    }
+
+    /* Hide Mobile-Only Elements (EXCEPT Scanner Slot) */
     .mobile-logout-fab,
-    #mobile-action-slot,
     .mobile-nav-balancer {
         display: none !important;
+    }
+
+    /* Allow Scanner on Desktop (Floating Bottom Right) */
+    #mobile-action-slot {
+        display: block !important;
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        z-index: 1000;
     }
 }

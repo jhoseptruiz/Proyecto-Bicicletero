@@ -7,7 +7,7 @@ import MapaAlumno from '../components/alumno/MapaAlumno';
 import Sidebar from '../components/Sidebar';
 import './AdminDashboard.css'; // Reutilizamos estilos del Admin para consistencia
 
-{ activeTab === 'dashboard' && <ContenidoAlumno alIrAlPerfil={() => setActiveTab('perfil')} /> }
+import ContenidoAlumno from '../components/ContenidoAlumno';
 import PerfilContent from '../components/PerfilContent';
 
 function AlumnoHome() {
@@ -35,7 +35,7 @@ function AlumnoHome() {
 
       <main className="main-content">
         {activeTab === 'dashboard' && (
-          <AlumnoContent onGoToProfile={() => setActiveTab('perfil')} />
+          <ContenidoAlumno alIrAlPerfil={() => setActiveTab('perfil')} />
         )}
         {activeTab === 'perfil' && <PerfilContent />}
       </main>
