@@ -5,7 +5,8 @@ import {
   rechazarIngreso,
   obtenerRegistrosActivos,
   finalizarEstadia,
-  modificarCasillero
+  modificarCasillero,
+  obtenerResumenGlobal
 } from "../services/guardia.service.js";
 import { handleSuccess, handleErrorServer, handleErrorClient } from "../Handlers/responseHandlers.js";
 
@@ -49,7 +50,8 @@ export async function postAprobarIngreso(req, res) {
     const registro = await aprobarIngreso(id, casillero, rutGuardia);
     handleSuccess(res, 200, "Ingreso aprobado exitosamente", registro);
   } catch (error) {
-    handleErrorServer(res, 400, "Error al aprobar ingreso", error.message);
+    console.error("Detalle del error:", error); // Esto ayuda a verlo en la terminal
+    handleErrorServer(res, 400, error.message, error.message);
   }
 }
 
@@ -105,4 +107,17 @@ export async function putModificarUbicacion(req, res) {
     } catch (error) {
         handleErrorServer(res, 400, "Error al modificar ubicación", error.message);
     }
+}
+
+/**
+ * Endpoint para polling global (contadores de todos los bicicleteros)
+ */
+export async function getResumenSolicitudes(req, res) {
+  try {
+    const rutGuardia = req.user.sub;
+    const resumen = await obtenerResumenGlobal(rutGuardia);
+    handleSuccess(res, 200, "Resumen global obtenido", resumen);
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al obtener resumen", error.message);
+  }
 }

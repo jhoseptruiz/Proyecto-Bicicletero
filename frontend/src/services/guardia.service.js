@@ -46,3 +46,8 @@ export const modificarUbicacion = async (registroId, nuevoCasillero) => {
   const response = await api.put(`/guardia/registro/${registroId}/ubicacion`, { nuevoCasillero });
   return response.data.data;
 };
+
+export const getResumenGlobal = async () => {
+  const response = await api.get('/guardia/resumen');
+  return response.data.data; // Retorna array: [{ id: 1, cantidad: 2 }, { id: 2, cantidad: 0 }]
+};

@@ -1,6 +1,5 @@
 import React from 'react';
 
-// Helper para las fotos
 const API_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000/api'; 
 const getFotoUrl = (url) => {
   if (!url) return "https://via.placeholder.com/150?text=Sin+Foto";
@@ -16,8 +15,12 @@ const EnCustodia = ({ activos, onCambiarCasillero, onFinalizar }) => {
 
   return (
     <>
-      {activos.map(activo => (
-        <div key={activo.id} className="card-registro active-card">
+      {activos.map((activo, index) => (
+        <div 
+           key={activo.id} 
+           className="card-registro active-card fade-in-card"
+           style={{ animationDelay: `${index * 0.1}s` }}
+        >
           <div className="casillero-badge">{activo.casillero}</div>
           <img src={getFotoUrl(activo.bicicleta.fotoUrl)} alt="Bici" className="card-img" />
           <div className="card-details">
@@ -32,9 +35,19 @@ const EnCustodia = ({ activos, onCambiarCasillero, onFinalizar }) => {
               <button className="btn-action btn-change" onClick={() => onCambiarCasillero(activo.id)}>
                 Cambiar Casillero
               </button>
+
+              {/* ========================================================================
+                  TODO: BORRAR ESTE BOTÓN CUANDO LA SOLICITUD DE RETIRO ESTÉ IMPLEMENTADA
+                  ========================================================================
+                  Una vez que los alumnos puedan pedir su retiro desde la app,
+                  este botón ya no debe existir aquí, porque la acción se hará
+                  desde la pestaña "Solicitudes".
+              */}
               <button className="btn-action btn-finish" onClick={() => onFinalizar(activo.id)}>
-                Finalizar / Salida
+                Finalizar / Salida (Manual)
               </button>
+              {/* ======================================================================== */}
+
             </div>
           </div>
         </div>

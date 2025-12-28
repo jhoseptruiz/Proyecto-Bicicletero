@@ -27,6 +27,12 @@ export const RegistroUso = new EntitySchema({
       enum: ["pendiente", "activo", "finalizado", "rechazado", "solicitando_retiro"],
       default: "pendiente",
     },
+
+    updated_at: {
+      type: "timestamp",
+      updateDate: true, // Esto hace la magia: se actualiza sola al cambiar el estado
+      default: () => "CURRENT_TIMESTAMP",
+    },
   },
   relations: {
     bicicleta: {

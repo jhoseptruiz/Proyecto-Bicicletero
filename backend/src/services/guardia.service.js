@@ -1,7 +1,7 @@
 import { AppDataSource } from "../config/configDb.js";
 import { Bicicletero } from "../entities/bicicletero.entity.js";
 import { RegistroUso } from "../entities/registroUso.entity.js"; // Asegúrate de importar esto
-import { LessThan, MoreThan, IsNull } from "typeorm";
+import { LessThan, MoreThan, IsNull, In } from "typeorm";
 
 const bicicleteroRepo = AppDataSource.getRepository(Bicicletero);
 const registroRepo = AppDataSource.getRepository(RegistroUso);
@@ -22,7 +22,7 @@ export async function obtenerSolicitudesPendientes(bicicleteroId) {
   return await registroRepo.find({
     where: {
       bicicletero: { id: bicicleteroId },
-      estado: "pendiente",
+      estado: In(["pendiente", "solicitando_retiro"]),
     },
     relations: ["bicicleta", "usuario"], // Para ver foto, marca y RUT
     order: { fechaIngreso: "ASC" }
@@ -176,4 +176,30 @@ export async function modificarCasillero(registroId, nuevoCasillero) {
 
   registro.casillero = nuevoCasillero;
   return await registroRepo.save(registro);
+}
+
+export async function obtenerResumenGlobal(rutGuardia) {
+  // 1. Buscamos los bicicleteros de este guardia
+  const bicicleteros = await bicicleteroRepo.find({
+    where: { guardiaAsignado: { rut: rutGuardia } },
+    select: ["id", "ubicacion"] // Solo necesitamos ID y nombre
+  });
+
+  // 2. Para cada uno, contamos las solicitudes pendientes/retiro
+  const resumen = await Promise.all(bicicleteros.map(async (bici) => {
+    const count = await registroRepo.count({
+      where: {
+        bicicletero: { id: bici.id },
+        estado: In(["pendiente", "solicitando_retiro"]) // Contamos ambos tipos
+      }
+    });
+    
+    return {
+      id: bici.id,
+      ubicacion: bici.ubicacion,
+      cantidad: count
+    };
+  }));
+
+  return resumen;
 }
