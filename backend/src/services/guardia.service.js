@@ -97,7 +97,7 @@ export async function aprobarIngreso(registroId, casilleroAsignado, guardiaRut) 
  * 3. Rechazar Ingreso
  * Requisito: "Rechazar un ingreso si la bicicleta o usuario no coinciden"
  */
-export async function rechazarIngreso(registroId, motivo) {
+export async function rechazarIngreso(registroId) {
   const registro = await registroRepo.findOneBy({ id: registroId });
   if (!registro) throw new Error("Solicitud no encontrada");
   
