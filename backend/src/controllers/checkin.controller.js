@@ -28,32 +28,35 @@ export async function validateQr(req, res) {
  */
 export async function scanBicicletero(req, res) {
     try {
-        // Recibimos 'codigoQr', pero ahora sabemos que contiene el ID (ej: 15)
-        const { codigoQr, lat, lng, bicicletaId } = req.body;
+        // Recibimos 'accion' desde el frontend
+        const { codigoQr, lat, lng, bicicletaId, accion } = req.body; 
         const rutAlumno = req.user.rut;
 
-        // Validamos
-        if (!codigoQr || !lat || !lng || !bicicletaId) {
-            return handleErrorClient(res, 400, "Faltan datos obligatorios");
+        if (!codigoQr || !lat || !lng || !bicicletaId || !accion) {
+            return handleErrorClient(res, 400, "Faltan datos obligatorios (incluyendo acción)");
         }
 
-        // Tratamos el codigoQr como un ID
         const bicicleteroId = codigoQr;
-
-        const yaEstaAdentro = await verificarBicicletaEnBicicletero(rutAlumno, bicicletaId);
-
         let resultado;
-        if (yaEstaAdentro) {
-            // Pasamos el bicicleteroId en lugar del string QR
+
+        // LÓGICA EXPLÍCITA: Obedecemos lo que pide el botón
+        if (accion === 'salida') {
+            // El usuario quiere sacar la bici
             resultado = await crearSolicitudSalida(rutAlumno, bicicleteroId, lat, lng, bicicletaId);
-            handleSuccess(res, 201, "Solicitud de retiro creada...", resultado);
-        } else {
-            // Pasamos el bicicleteroId en lugar del string QR
+            handleSuccess(res, 201, "Solicitud de retiro creada exitosamente", resultado);
+        
+        } else if (accion === 'ingreso') {
+            // El usuario quiere ingresar la bici
             resultado = await crearSolicitudIngreso(rutAlumno, bicicleteroId, lat, lng, bicicletaId);
-            handleSuccess(res, 201, "Solicitud de ingreso creada...", resultado);
+            handleSuccess(res, 201, "Solicitud de ingreso creada exitosamente", resultado);
+        
+        } else {
+            return handleErrorClient(res, 400, "Acción no válida (use 'ingreso' o 'salida')");
         }
 
     } catch (error) {
+        // Si el usuario intenta ingresar una bici que ya está adentro, 
+        // el servicio lanzará error y se mostrará aquí correctamente.
         handleErrorClient(res, 400, error.message);
     }
 }
