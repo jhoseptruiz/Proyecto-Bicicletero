@@ -7,7 +7,7 @@ import mapboxgl from 'mapbox-gl'; // Need LngLatBounds
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoibWlsZW5ja2FhIiwiYSI6ImNtamxxZDAzYjJxNTIza3B5OXZmcmk1cXMifQ.xW3QubyrM10uSbt08RlAPA";
 
-const MapaAlumno = () => {
+const MapaAlumno = ({ onMarkerClick }) => {
     const navigate = useNavigate();
     const mapRef = useRef(null);
     const [bicicleteros, setBicicleteros] = useState([]);
@@ -98,7 +98,11 @@ const MapaAlumno = () => {
                             anchor="center"
                             onClick={(e) => {
                                 e.originalEvent.stopPropagation();
-                                navigate('/scan', { state: { preSelectedBicicletero: b } });
+                                if (onMarkerClick) {
+                                    onMarkerClick(b);
+                                } else {
+                                    navigate('/scan', { state: { preSelectedBicicletero: b } });
+                                }
                             }}
                             style={{ cursor: 'pointer' }}
                         >

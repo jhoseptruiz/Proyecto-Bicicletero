@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { getMisBicicletas } from '../../services/bicicleta.service';
 import { scanQr, validateQr } from '../../services/checkin.service';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
-function Scanner() {
+function Scanner({ alCerrar, alIrAlPerfil }) {
   // Estados de Flujo: 'WAITING' (Esperando) | 'SCANNING' (Escaneando) | 'DECIDING' (Decidiendo) | 'PROCESSING' (Procesando) | 'RESULT' (Resultado)
   const [step, setStep] = useState('WAITING');
 
@@ -44,7 +44,7 @@ function Scanner() {
     }
   };
 
-  // --- PASO 1: INICIAR ESCANEO ---
+
   const startScanner = () => {
     setStep('SCANNING');
     setContextData(null);
@@ -73,17 +73,10 @@ function Scanner() {
     setMensaje({ tipo: 'info', texto: "Verificando QR y Ubicación..." });
 
     try {
-      // VALIDACION DE SEGURIDAD (ANTI-SPOOFING)
-      // Aseguramos que el alumno esté físicamente escaneando el QR que seleccionó en el mapa.
       if (expectedQr && decodedText !== expectedQr) {
         throw new Error("El QR escaneado no corresponde al bicicletero seleccionado en el mapa.");
       }
 
-      // 1. Validar QR con Backend
-      const validation = await validateQr(decodedText);
-      const bicicletero = validation.data;
-
-      // 2. Validar GPS
       if (!navigator.geolocation) throw new Error("GPS no soportado");
 
       navigator.geolocation.getCurrentPosition(
@@ -113,7 +106,7 @@ function Scanner() {
     // console.warn(error);
   };
 
-  // --- PASO 3: EJECUTAR ACCIÓN ---
+
   const ejecutarAccion = async () => {
     if (!selectedBicicleta) {
       alert("Selecciona una bicicleta");
@@ -135,13 +128,12 @@ function Scanner() {
     }
   };
 
-  // --- RENDERIZADO DEL WIZARD ---
+
 
   const renderDeciding = () => {
     if (!contextData) return null;
 
     // Filtros Inteligentes
-    // Bicicletas adentro de ESTE bicicletero exacto
     const bicisAdentro = bicicletas.filter(b => b.estadoActual?.estaAdentro && b.estadoActual?.bicicleteroId == contextData.id);
 
     // Bicicletas disponibles (afuera de cualquier lado)
@@ -152,7 +144,6 @@ function Scanner() {
         <h3 style={{ marginBottom: '5px' }}>📍 {contextData.ubicacion}</h3>
         <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '15px' }}>Selecciona qué deseas hacer:</p>
 
-        {/* SECCIÓN RETIRO */}
         {bicisAdentro.length > 0 && (
           <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #17a2b8', borderRadius: '8px', backgroundColor: '#f0faff' }}>
             <h4 style={{ color: '#17a2b8', margin: '0 0 10px 0' }}>📤 Retirar Bicicleta</h4>
@@ -170,7 +161,6 @@ function Scanner() {
           </div>
         )}
 
-        {/* SECCIÓN INGRESO */}
         <div style={{ padding: '15px', border: '1px solid #28a745', borderRadius: '8px', backgroundColor: '#f0fff4' }}>
           <h4 style={{ color: '#28a745', margin: '0 0 10px 0' }}>📥 Ingresar Bicicleta</h4>
 
@@ -193,15 +183,21 @@ function Scanner() {
           )}
 
           <div style={{ marginTop: '15px', borderTop: '1px solid #ccc', paddingTop: '10px' }}>
-            <Link to="/perfil">
-              <button style={{ background: 'white', border: '1px dashed #28a745', color: '#28a745', width: '100%', padding: '8px', borderRadius: '4px', cursor: 'pointer' }}>
-                + Registrar Nueva Bicicleta
-              </button>
-            </Link>
+            <button
+              onClick={() => {
+                if (alIrAlPerfil) alIrAlPerfil();
+              }}
+              style={{ background: 'white', border: '1px dashed #28a745', color: '#28a745', width: '100%', padding: '8px', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              + Registrar Nueva Bicicleta
+            </button>
           </div>
         </div>
 
-        <button onClick={() => setStep('WAITING')} style={{ marginTop: '20px', background: 'none', border: 'none', color: '#666', textDecoration: 'underline', cursor: 'pointer', width: '100%' }}>
+        <button onClick={() => {
+          if (alCerrar) alCerrar();
+          else setStep('WAITING');
+        }} style={{ marginTop: '20px', background: 'none', border: 'none', color: '#666', textDecoration: 'underline', cursor: 'pointer', width: '100%' }}>
           Cancelar / Escanear otro
         </button>
       </div>
@@ -237,7 +233,14 @@ function Scanner() {
         <div>
           <h3>Escanear Código...</h3>
           <div id="reader" width="100%"></div>
-          <button onClick={() => { stopScanner(); setStep('WAITING'); }} style={{ marginTop: '10px', width: '100%', padding: '10px' }}>Cancelar</button>
+
+
+
+          <button onClick={() => {
+            stopScanner();
+            if (alCerrar) alCerrar();
+            else setStep('WAITING');
+          }} style={{ marginTop: '10px', width: '100%', padding: '10px' }}>Cancelar</button>
         </div>
       )}
 
@@ -247,7 +250,10 @@ function Scanner() {
         <div style={{ textAlign: 'center' }}>
           <h3>¡Listo!</h3>
           <p>{mensaje?.texto}</p>
-          <button onClick={() => setStep('WAITING')} style={{ marginTop: '10px', padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '5px' }}>Volver al Inicio</button>
+          <button onClick={() => {
+            if (alCerrar) alCerrar();
+            else setStep('WAITING');
+          }} style={{ marginTop: '10px', padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '5px' }}>Volver al Inicio</button>
         </div>
       )}
 

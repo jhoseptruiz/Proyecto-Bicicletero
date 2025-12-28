@@ -1,9 +1,7 @@
-// frontend/src/components/ProtectedRoute.jsx (¡Corregido!)
-
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 
-function ProtectedRoute({ allowedRoles, children }) {
+function RutaProtegida({ allowedRoles, children }) {
   
   const token = localStorage.getItem('token');
   const userString = localStorage.getItem('user');
@@ -38,4 +36,4 @@ function ProtectedRoute({ allowedRoles, children }) {
   }
 }
 
-export default ProtectedRoute;
+export default RutaProtegida;

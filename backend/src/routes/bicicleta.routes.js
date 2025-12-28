@@ -5,7 +5,7 @@ import { upload } from "../config/multer.config.js";
 
 const router = Router();
 
-router.use(verificarToken, checkRol(['alumno']));
+router.use(verificarToken, checkRol(['alumno', 'admin', 'guardia']));
 
 router.get("/mis-bicicletas", getMisBicicletas);
 router.post("/", upload.single('foto'), postBicicleta);
