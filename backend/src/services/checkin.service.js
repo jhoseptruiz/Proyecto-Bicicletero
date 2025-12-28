@@ -16,9 +16,10 @@ const MAX_DISTANCIA_METROS = 50;
 
 /**
  * Valida y crea una solicitud de ingreso (Estado: pendiente).
- * Revisa: Existencia user/bici, ubicación GPS, QR válido, horario y capacidad.
+ * Revisa: Existencia user/bici, ubicación GPS, ID válido, horario y capacidad.
+ * NOTA: El parámetro 'bicicleteroId' antes era 'codigoQr'. Ahora recibimos el ID numérico.
  */
-export async function crearSolicitudIngreso(rutAlumno, codigoQr, lat, lng, bicicletaId) {
+export async function crearSolicitudIngreso(rutAlumno, bicicleteroId, lat, lng, bicicletaId) {
     // 1. Validar Usuario y Bicicleta
     const usuario = await userRepo.findOne({ where: { rut: rutAlumno } });
     if (!usuario) throw new Error("Usuario no encontrado.");
@@ -32,9 +33,11 @@ export async function crearSolicitudIngreso(rutAlumno, codigoQr, lat, lng, bicic
     });
     if (usoActivo) throw new Error("Esta bicicleta ya figura ingresada en un bicicletero.");
 
-    // 2. Validar Bicicletero por QR
-    const bicicletero = await bicicleteroRepo.findOne({ where: { codigoQr: codigoQr } });
-    if (!bicicletero) throw new Error("Código QR inválido. No pertenece a ningún bicicletero registrado.");
+    // 2. Validar Bicicletero por ID (CORREGIDO)
+    // Antes buscaba por string codigoQr, ahora busca por ID primario
+    const bicicletero = await bicicleteroRepo.findOne({ where: { id: bicicleteroId } });
+    
+    if (!bicicletero) throw new Error("Bicicletero no encontrado (ID inválido).");
 
     // 3. Validar Ubicación Física (Geolocalización)
     if (bicicletero.latitud && bicicletero.longitud) {
@@ -43,21 +46,16 @@ export async function crearSolicitudIngreso(rutAlumno, codigoQr, lat, lng, bicic
             throw new Error(`Estás muy lejos del bicicletero (${distancia}m). Acércate a menos de ${MAX_DISTANCIA_METROS}m.`);
         }
     } else {
-        // Opcional: Si el bicicletero no tiene coords configuradas, ¿permitimos o denegamos?
-        // Por seguridad, si es feature core, debería tenerlas.
         throw new Error("El bicicletero no tiene ubicación configurada para validación.");
     }
 
     // 4. Validar Horario de Funcionamiento
-    // Nota: horaApertura/Cierre vienen como string "HH:MM:SS" de la BD
-    const ahora = new Date();
-    const [horaActual, minActual] = [ahora.getHours(), ahora.getMinutes()];
-
-    // Convertir horarios de BD a comparables (simple parsing)
-    // Asumimos formato "HH:MM:SS". Si es null, asumimos 24/7 o cerrado? Asumamos cerrado si no tiene horario.
     if (!bicicletero.horaApertura || !bicicletero.horaCierre) {
-        // Si no hay horario definido, asumo operativo. (O lanzar error según regla de negocio)
+        // Sin horario definido = Operativo 24/7 (según lógica previa)
     } else {
+        const ahora = new Date();
+        const [horaActual, minActual] = [ahora.getHours(), ahora.getMinutes()];
+        
         const [hApertura, mApertura] = bicicletero.horaApertura.split(':').map(Number);
         const [hCierre, mCierre] = bicicletero.horaCierre.split(':').map(Number);
 
@@ -71,7 +69,6 @@ export async function crearSolicitudIngreso(rutAlumno, codigoQr, lat, lng, bicic
     }
 
     // 5. Validar Capacidad
-    // Contamos usos activos (sin fecha salida) para este bicicletero
     const ocupados = await usoRepo.count({
         where: { bicicletero: { id: bicicletero.id }, fechaSalida: null }
     });
@@ -96,7 +93,7 @@ export async function crearSolicitudIngreso(rutAlumno, codigoQr, lat, lng, bicic
  * Genera la solicitud de salida. 
  * Cambia el estado a solicitando_retiro para alertar al guardia.
  */
-export async function crearSolicitudSalida(rutAlumno, codigoQr, lat, lng, bicicletaId) {
+export async function crearSolicitudSalida(rutAlumno, bicicleteroId, lat, lng, bicicletaId) {
     // 1. Validar Usuario y que tenga la bici adentro
     const usoActivo = await usoRepo.findOne({
         where: {
@@ -109,9 +106,9 @@ export async function crearSolicitudSalida(rutAlumno, codigoQr, lat, lng, bicicl
 
     if (!usoActivo) throw new Error("No tienes esta bicicleta estacionada actualmente.");
 
-    // 2. Validar que sea el mismo bicicletero donde está guardada
-    // (Opcional: Si el sistema es distribuido. Pero asumamos que debe estar ahí)
-    if (usoActivo.bicicletero.codigoQr !== codigoQr) {
+    // 2. Validar que sea el mismo bicicletero donde está guardada (CORREGIDO)
+    // Comparamos IDs. Usamos != para permitir comparación flexible (string vs number)
+    if (usoActivo.bicicletero.id != bicicleteroId) {
         throw new Error("Estás escaneando un bicicletero distinto al donde dejaste tu bicicleta.");
     }
 
@@ -128,20 +125,17 @@ export async function crearSolicitudSalida(rutAlumno, codigoQr, lat, lng, bicicl
     return await usoRepo.save(usoActivo);
 }
 
-
-
 /**
  * Obtiene el estado de la solicitud activa de un usuario (si tiene alguna).
  */
 export async function obtenerEstadoSolicitud(rutAlumno) {
-    // Buscar la última sin fechaSalida
     const uso = await usoRepo.findOne({
         where: { usuario: { rut: rutAlumno }, fechaSalida: null },
         relations: ["bicicletero", "bicicleta"],
         order: { fechaIngreso: "DESC" }
     });
 
-    if (!uso) return null; // No tiene solicitud activa
+    if (!uso) return null;
 
     return {
         id: uso.id,
@@ -152,11 +146,14 @@ export async function obtenerEstadoSolicitud(rutAlumno) {
     };
 }
 
-export async function validarQrBicicletero(codigoQr) {
-    const bicicletero = await bicicleteroRepo.findOne({ where: { codigoQr } });
+// CORREGIDO: Valida buscando por ID
+export async function validarQrBicicletero(bicicleteroId) {
+    const bicicletero = await bicicleteroRepo.findOne({ where: { id: bicicleteroId } });
+    
     if (!bicicletero) {
-        throw new Error("Código QR no válido o no encontrado.");
+        throw new Error("Bicicletero no encontrado.");
     }
+    
     return {
         id: bicicletero.id,
         ubicacion: bicicletero.ubicacion,
@@ -169,7 +166,6 @@ export async function validarQrBicicletero(codigoQr) {
 
 /**
  * Verifica si el usuario ya tiene esta bici adentro para guiar el flujo en el Frontend.
- * @returns {Promise<boolean>} true si la bici ya está adentro.
  */
 export async function verificarBicicletaEnBicicletero(rutAlumno, bicicletaId) {
     const uso = await usoRepo.findOne({
@@ -184,18 +180,15 @@ export async function verificarBicicletaEnBicicletero(rutAlumno, bicicletaId) {
 
 /**
  * Obtiene el estado actual de los bicicleteros para el mapa.
- * Incluye ubicación, capacidad total y ocupación calculada en tiempo real.
  */
 export async function obtenerEstadoBicicleteros() {
     const bicicleteros = await bicicleteroRepo.find();
 
-    // Calcular ocupación real para cada uno
     const estados = await Promise.all(bicicleteros.map(async (bici) => {
         const ocupados = await usoRepo.count({
             where: { bicicletero: { id: bici.id }, fechaSalida: null }
         });
 
-        // Determinar estado lógico para el mapa
         let estadoMapa = "DISPONIBLE";
         if (ocupados >= bici.capacidad) estadoMapa = "LLENO";
         if (bici.estado !== "operativo") estadoMapa = "MANTENIMIENTO";
@@ -208,9 +201,9 @@ export async function obtenerEstadoBicicleteros() {
             capacidad: bici.capacidad,
             ocupados: ocupados,
             disponibles: bici.capacidad - ocupados,
-            estado: estadoMapa, // Para pintar colores en el mapa
+            estado: estadoMapa,
             horario: `${bici.horaApertura} - ${bici.horaCierre}`,
-            codigoQr: bici.codigoQr // Exposed for "Click to Scan" logic
+            codigoQr: bici.codigoQr
         };
     }));
 

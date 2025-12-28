@@ -28,32 +28,32 @@ export async function validateQr(req, res) {
  */
 export async function scanBicicletero(req, res) {
     try {
+        // Recibimos 'codigoQr', pero ahora sabemos que contiene el ID (ej: 15)
         const { codigoQr, lat, lng, bicicletaId } = req.body;
-        const rutAlumno = req.user.rut; // Viene del token
+        const rutAlumno = req.user.rut;
 
-        // Validaciones básicas de entrada
+        // Validamos
         if (!codigoQr || !lat || !lng || !bicicletaId) {
-            return handleErrorClient(res, 400, "Faltan datos obligatorios (QR, GPS, Bici)");
+            return handleErrorClient(res, 400, "Faltan datos obligatorios");
         }
 
-        // Determinar flujo: Ingreso o Salida?
+        // Tratamos el codigoQr como un ID
+        const bicicleteroId = codigoQr;
+
         const yaEstaAdentro = await verificarBicicletaEnBicicletero(rutAlumno, bicicletaId);
 
         let resultado;
         if (yaEstaAdentro) {
-            // Flujo SALIDA
-            resultado = await crearSolicitudSalida(rutAlumno, codigoQr, lat, lng, bicicletaId);
-            handleSuccess(res, 201, "Solicitud de retiro creada. El guardia ha sido notificado.", resultado);
+            // Pasamos el bicicleteroId en lugar del string QR
+            resultado = await crearSolicitudSalida(rutAlumno, bicicleteroId, lat, lng, bicicletaId);
+            handleSuccess(res, 201, "Solicitud de retiro creada...", resultado);
         } else {
-            // Flujo INGRESO
-            resultado = await crearSolicitudIngreso(rutAlumno, codigoQr, lat, lng, bicicletaId);
-            handleSuccess(res, 201, "Solicitud de ingreso creada. Espere confirmación del guardia.", resultado);
+            // Pasamos el bicicleteroId en lugar del string QR
+            resultado = await crearSolicitudIngreso(rutAlumno, bicicleteroId, lat, lng, bicicletaId);
+            handleSuccess(res, 201, "Solicitud de ingreso creada...", resultado);
         }
 
     } catch (error) {
-        // Errores de negocio (Validaciones del servicio lanzan Error)
-        // Asumimos que errores del servicio son Client Errors (400/409) si son validaciones
-        // Para simplificar, si el mensaje es conocido, lo mandamos como 400
         handleErrorClient(res, 400, error.message);
     }
 }
