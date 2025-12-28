@@ -249,33 +249,72 @@ const GuardiaPanel = () => {
         {(activeTab === 'solicitudes' || activeTab === 'custodia') && (
           <>
             {/* Header */}
-            <div style={{
-              background: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
-            }}>
+          <div style={{ 
+              background: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px', 
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+              boxShadow: '0 2px 5px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '15px' 
+          }}>
+              
+              {/* SECCIÓN 1: TÍTULO Y OCUPACIÓN */}
               <div>
-                <h2 style={{ margin: 0, color: '#2c3e50', fontSize: '1.5rem' }}>
-                  {activeTab === 'solicitudes' ? 'Gestionar Solicitudes' : 'Bicicletas en Custodia'}
-                </h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <p style={{ margin: '5px 0 0', color: '#666' }}>
-                    Ocupación: <strong>{activos.length} / {bicicleteroActual?.capacidad}</strong>
-                  </p>
-                </div>
+                  <h2 style={{ margin: 0, color: '#2c3e50', fontSize: '1.5rem' }}>
+                      {activeTab === 'solicitudes' ? 'Gestionar Solicitudes' : 'Bicicletas en Custodia'}
+                  </h2>
+                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginTop:'5px'}}>
+                      <p style={{ margin: 0, color: '#666', fontSize: '0.9rem' }}>
+                          Ocupación: <strong>{activos.length} / {bicicleteroActual?.capacidad}</strong>
+                      </p>
+                  </div>
               </div>
 
+              {/* SECCIÓN 2 (NUEVA): INFO DEL BICICLETERO */}
+              {bicicleteroActual && (
+                  <div style={{ 
+                      display: 'flex', gap: '20px', fontSize: '0.9rem', color: '#555', 
+                      background: '#f8f9fa', padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee' 
+                  }}>
+                      
+                      {/* Estado */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#999', fontWeight: 'bold' }}>
+                              Estado
+                          </span>
+                          <span style={{ 
+                              fontWeight: 'bold', 
+                              color: bicicleteroActual.estado === 'operativo' ? '#27ae60' : '#e74c3c', // Verde si operativo, Rojo si no
+                              textTransform: 'capitalize' 
+                          }}>
+                              {bicicleteroActual.estado || 'Desconocido'}
+                          </span>
+                      </div>
+
+                      {/* Línea vertical separadora */}
+                      <div style={{ width: '1px', background: '#ddd', height: '30px' }}></div>
+
+                      {/* Horario */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#999', fontWeight: 'bold' }}>
+                              Horario
+                          </span>
+                          <span style={{ fontWeight: 'bold', color: '#2c3e50' }}>
+                              {/* Cortamos los segundos con .slice(0,5) para que diga 08:00 en vez de 08:00:00 */}
+                              {bicicleteroActual.horaApertura?.slice(0,5)} - {bicicleteroActual.horaCierre?.slice(0,5)} Hrs
+                          </span>
+                      </div>
+                  </div>
+              )}
+
+              {/* SECCIÓN 3: SELECTOR */}
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <select
-                  style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }}
-                  value={bicicleteroActual?.id || ''}
-                  onChange={handleBicicleteroChange}
-                >
-                  {misBicicleteros.map(b => (
-                    <option key={b.id} value={b.id}>{b.ubicacion}</option>
-                  ))}
-                </select>
+                  <select 
+                      style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc', background:'white', cursor:'pointer' }}
+                      value={bicicleteroActual?.id || ''} 
+                      onChange={handleBicicleteroChange}
+                  >
+                      {misBicicleteros.map(b => <option key={b.id} value={b.id}>{b.ubicacion}</option>)}
+                  </select>
               </div>
-            </div>
+          </div>
 
             {/* Tarjetas */}
             <div className="cards-grid">
