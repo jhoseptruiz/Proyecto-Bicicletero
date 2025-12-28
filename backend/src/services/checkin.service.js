@@ -20,6 +20,9 @@ const MAX_DISTANCIA_METROS = 50;
  */
 export async function crearSolicitudIngreso(rutAlumno, bicicleteroId, lat, lng, bicicletaId) {
     // 1. Validar Usuario y Bicicleta
+    if (!rutAlumno) throw new Error("El RUT del alumno es inválido o no fue proporcionado.");
+
+    // 1. Validar Usuario y Bicicleta
     const usuario = await userRepo.findOne({ where: { rut: rutAlumno } });
     if (!usuario) throw new Error("Usuario no encontrado.");
 

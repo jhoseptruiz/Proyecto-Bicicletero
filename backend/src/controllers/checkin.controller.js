@@ -3,7 +3,6 @@ import {
     crearSolicitudSalida,
     obtenerEstadoSolicitud,
     obtenerEstadoBicicleteros,
-    verificarBicicletaEnBicicletero,
     validarQrBicicletero
 } from "../services/checkin.service.js";
 import { handleSuccess, handleErrorClient, handleErrorServer } from "../Handlers/responseHandlers.js";
@@ -24,13 +23,19 @@ export async function validateQr(req, res) {
 }
 
 /**
- * Maneja el escaneo del QR. Deriva a ingreso o salida según si ya tiene bici dentro.
+ * Maneja el escaneo del QR. Deriva a ingreso o salida.
  */
 export async function scanBicicletero(req, res) {
     try {
-        // Recibimos 'accion' desde el frontend
         const { codigoQr, lat, lng, bicicletaId, accion } = req.body; 
-        const rutAlumno = req.user.rut;
+        
+        // CORRECCIÓN 1: Asegurar lectura del RUT (puede venir en .rut o .sub)
+        const rutAlumno = req.user.rut || req.user.sub;
+
+        // CORRECCIÓN 2: Validación estricta
+        if (!rutAlumno) {
+            return handleErrorClient(res, 401, "Error de identidad: No se pudo obtener el RUT del token.");
+        }
 
         if (!codigoQr || !lat || !lng || !bicicletaId || !accion) {
             return handleErrorClient(res, 400, "Faltan datos obligatorios (incluyendo acción)");
@@ -39,14 +44,11 @@ export async function scanBicicletero(req, res) {
         const bicicleteroId = codigoQr;
         let resultado;
 
-        // LÓGICA EXPLÍCITA: Obedecemos lo que pide el botón
         if (accion === 'salida') {
-            // El usuario quiere sacar la bici
             resultado = await crearSolicitudSalida(rutAlumno, bicicleteroId, lat, lng, bicicletaId);
             handleSuccess(res, 201, "Solicitud de retiro creada exitosamente", resultado);
         
         } else if (accion === 'ingreso') {
-            // El usuario quiere ingresar la bici
             resultado = await crearSolicitudIngreso(rutAlumno, bicicleteroId, lat, lng, bicicletaId);
             handleSuccess(res, 201, "Solicitud de ingreso creada exitosamente", resultado);
         
@@ -55,8 +57,6 @@ export async function scanBicicletero(req, res) {
         }
 
     } catch (error) {
-        // Si el usuario intenta ingresar una bici que ya está adentro, 
-        // el servicio lanzará error y se mostrará aquí correctamente.
         handleErrorClient(res, 400, error.message);
     }
 }
@@ -66,7 +66,7 @@ export async function scanBicicletero(req, res) {
  */
 export async function checkStatus(req, res) {
     try {
-        const rutAlumno = req.user.rut;
+        const rutAlumno = req.user.rut || req.user.sub; // CORRECCIÓN AQUÍ TAMBIÉN
         const status = await obtenerEstadoSolicitud(rutAlumno);
 
         if (!status) {
@@ -80,7 +80,7 @@ export async function checkStatus(req, res) {
 }
 
 /**
- * Endpoint para el Mapa: Devuelve capacidad y ubicaciones.
+ * Endpoint para el Mapa.
  */
 export async function getMapData(req, res) {
     try {
