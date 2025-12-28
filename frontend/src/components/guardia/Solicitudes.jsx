@@ -16,9 +16,14 @@ const Solicitudes = ({ solicitudes, onAprobar, onRechazar }) => {
 
   return (
     <>
-      {solicitudes.map(sol => (
-        <div key={sol.id} className="card-registro">
+      {solicitudes.map((sol, index) => (
+        <div 
+          key={sol.id} 
+          className="card-registro fade-in-card"
+          style={{ animationDelay: `${index * 0.1}s` }} // Efecto cascada
+        >
           <img src={getFotoUrl(sol.bicicleta.fotoUrl)} alt="Bici" className="card-img" />
+          
           <div className="card-details">
             <h3>{sol.usuario.nombre} {sol.usuario.apellido}</h3>
             <p className="rut-text">{sol.usuario.rut}</p>
@@ -26,6 +31,7 @@ const Solicitudes = ({ solicitudes, onAprobar, onRechazar }) => {
             <p className="time-text">
               Solicitud: {new Date(sol.fechaIngreso).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
             </p>
+            
             <div className="card-actions">
               <button className="btn-action btn-approve" onClick={() => onAprobar(sol.id)}>
                 Asignar Casillero

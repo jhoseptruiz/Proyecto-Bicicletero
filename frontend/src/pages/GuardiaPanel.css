@@ -264,3 +264,28 @@
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
 }
+
+/* --- ANIMACIONES --- */
+
+/* Define la animación: aparece desde abajo y se vuelve opaca */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px); /* Empieza 20px más abajo */
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0); /* Termina en su posición original */
+  }
+}
+
+/* Clase para aplicar la animación */
+.fade-in-card {
+  /* Ejecuta la animación 'fadeInUp' durante 0.5 segundos con un ritmo suave */
+  animation: fadeInUp 0.5s ease-out forwards; 
+  
+  /* Opcional: Para que las tarjetas no aparezcan todas al mismo tiempo en la carga inicial,
+     podemos usar un pequeño truco en JS (ver Paso 2) o simplemente dejarlas así.
+     Si el polling trae una sola tarjeta nueva, esta se animará sola.
+  */
+}
