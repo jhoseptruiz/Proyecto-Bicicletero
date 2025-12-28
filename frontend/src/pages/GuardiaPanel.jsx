@@ -99,7 +99,7 @@ const GuardiaPanel = () => {
       cargarDatosDelBicicletero(bicicleteroActual.id);
       
     } catch (error) {
-      alert(`❌ Error al aprobar: ${error.response?.data?.message || error.message}`);
+      alert(` Error al aprobar: ${error.response?.data?.message || error.message}`);
     }
   };
 
@@ -110,7 +110,7 @@ const GuardiaPanel = () => {
       await rechazarIngreso(solicitudId, motivo);
       cargarDatosDelBicicletero(bicicleteroActual.id);
     } catch (error) {
-      alert("Error al rechazar");
+      alert(` Error al rechazar: ${error.response?.data?.message || error.message}` );
     }
   };
 
@@ -121,7 +121,7 @@ const GuardiaPanel = () => {
       setBicicleteroActual(prev => ({...prev, bicicletasGuardadas: prev.bicicletasGuardadas - 1}));
       cargarDatosDelBicicletero(bicicleteroActual.id);
     } catch (error) {
-      alert("Error al finalizar estadía");
+      alert(` Error al finalizar estadia: ${error.response?.data?.message || error.message}`);
     }
   };
 
