@@ -24,8 +24,8 @@ export const aprobarIngreso = async (registroId, casillero) => {
 };
 
 // 4. Rechazar ingreso
-export const rechazarIngreso = async (registroId, motivo) => {
-  const response = await api.post(`/guardia/ingreso/${registroId}/rechazar`, { motivo });
+export const rechazarIngreso = async (registroId) => {
+  const response = await api.post(`/guardia/ingreso/${registroId}/rechazar`);
   return response.data.data;
 };
 

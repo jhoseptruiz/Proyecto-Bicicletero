@@ -31,5 +31,4 @@ function SidebarGuardia({ activeTab, setActiveTab, onLogout }) {
   );
 }
 
-// ESTA LÍNEA ES LA QUE TE FALTABA O ESTABA MAL:
 export default SidebarGuardia;

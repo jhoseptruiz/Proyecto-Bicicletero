@@ -14,6 +14,7 @@ import SidebarGuardia from '../components/guardia/SidebarGuardia';
 import Solicitudes from '../components/guardia/Solicitudes';
 import EnCustodia from '../components/guardia/EnCustodia';
 import CasilleroModal from '../components/guardia/CasilleroModal';
+import ConfirmModal from '../components/guardia/ConfirmModal'; // <--- IMPORTADO
 
 import './AdminDashboard.css'; 
 import './GuardiaPanel.css'; 
@@ -21,7 +22,7 @@ import './GuardiaPanel.css';
 const GuardiaPanel = () => {
   const navigate = useNavigate();
 
-  // Estados
+  // Estados de Datos
   const [misBicicleteros, setMisBicicleteros] = useState([]);
   const [bicicleteroActual, setBicicleteroActual] = useState(null);
   const [solicitudes, setSolicitudes] = useState([]);
@@ -29,10 +30,19 @@ const GuardiaPanel = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('solicitudes');
   
-  // Modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Estados de Modales
+  const [isModalOpen, setIsModalOpen] = useState(false); // Modal de Casilleros (Bolitas)
   const [selectedItem, setSelectedItem] = useState(null); 
   const [modalMode, setModalMode] = useState('aprobar');
+
+  // --- NUEVO ESTADO PARA CONFIRMACIONES ---
+  const [confirmConfig, setConfirmConfig] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    action: null, // La función a ejecutar si dice "Sí"
+    isDanger: false
+  });
 
   // Refs para notificaciones
   const prevSolicitudesIds = useRef(new Set());
@@ -58,7 +68,7 @@ const GuardiaPanel = () => {
     init();
   }, []);
 
-  // Detector de notificaciones
+  // Notificaciones
   useEffect(() => {
     if (isFirstLoad.current) {
       if (solicitudes.length > 0) {
@@ -67,80 +77,54 @@ const GuardiaPanel = () => {
       isFirstLoad.current = false;
       return;
     }
-
     const nuevas = solicitudes.filter(s => !prevSolicitudesIds.current.has(s.id));
-
     if (nuevas.length > 0) {
       const ultima = nuevas[0];
       if (Notification.permission === 'granted') {
         new Notification("🔔 Nueva Solicitud", {
           body: `${ultima.usuario.nombre} - ${ultima.bicicleta.marca}`,
-          icon: "/vite.svg",
-          requireInteraction: true // Mantiene la notificación visible hasta que el usuario la clickea
+          icon: "/vite.svg"
         });
       }
     }
     prevSolicitudesIds.current = new Set(solicitudes.map(s => s.id));
   }, [solicitudes]);
 
-
-  // --- POLLING OPTIMIZADO CON WEB WORKER ---
-  // Esto evita que el navegador "duerma" el intervalo en segundo plano
+  // Polling con Worker
   useEffect(() => {
     if (!bicicleteroActual) return;
-
-    // 1. Carga inicial inmediata
     cargarDatos(bicicleteroActual.id, true);
 
-    // 2. Definimos el código del Worker como un Blob (para no crear archivos extra)
     const workerCode = `
       let intervalId;
       self.onmessage = function(e) {
         if (e.data === 'start') {
-          // Ejecutar cada 4 segundos
-          intervalId = setInterval(() => {
-            self.postMessage('tick');
-          }, 4000); 
-        } else if (e.data === 'stop') {
-          clearInterval(intervalId);
-        }
+          intervalId = setInterval(() => { self.postMessage('tick'); }, 4000); 
+        } else if (e.data === 'stop') { clearInterval(intervalId); }
       };
     `;
-
-    // 3. Crear el Worker
     const blob = new Blob([workerCode], { type: 'application/javascript' });
     const worker = new Worker(URL.createObjectURL(blob));
 
-    // 4. Cuando el Worker manda un 'tick', cargamos los datos
-    worker.onmessage = () => {
-      cargarDatos(bicicleteroActual.id, false);
-    };
-
-    // Iniciar el worker
+    worker.onmessage = () => { cargarDatos(bicicleteroActual.id, false); };
     worker.postMessage('start');
 
-    // Limpieza al desmontar
     return () => {
       worker.postMessage('stop');
       worker.terminate();
-      URL.revokeObjectURL(blob); // Liberar memoria
+      URL.revokeObjectURL(blob);
     };
-
-  }, [bicicleteroActual]); // Se recrea si cambia el bicicletero
-
+  }, [bicicleteroActual]);
 
   const cargarDatos = async (id, mostrarLoading = true) => {
     try {
       if (mostrarLoading) setLoading(true);
-
       const [pendientes, enCustodia] = await Promise.all([
         getSolicitudes(id),
         getActivos(id)
       ]);
-      
       setSolicitudes(pendientes);
       setActivos(enCustodia);
-      
     } catch (error) {
       console.error("Error loading:", error);
     } finally {
@@ -148,7 +132,6 @@ const GuardiaPanel = () => {
     }
   };
 
-  // Handlers
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -160,7 +143,8 @@ const GuardiaPanel = () => {
     setBicicleteroActual(misBicicleteros.find(b => b.id === id));
   };
 
-  // Modal Logic
+  // --- LOGICA MODALES ---
+
   const abrirModalAprobar = (id) => {
     setSelectedItem(id);
     setModalMode('aprobar');
@@ -173,50 +157,81 @@ const GuardiaPanel = () => {
     setIsModalOpen(true);
   };
 
-  const handleSeleccionarCasillero = async (casilleroId) => {
+  // Helper para abrir la confirmación
+  const solicitarConfirmacion = (title, message, action, isDanger = false) => {
+    setConfirmConfig({ isOpen: true, title, message, action, isDanger });
+  };
+
+  // 1. CONFIRMAR ASIGNACIÓN (Desde el modal de bolitas)
+  const handleSeleccionarCasillero = (casilleroId) => {
     const esAprobar = modalMode === 'aprobar';
-    const accionTexto = esAprobar ? 'Asignar' : 'Mover';
+    const accionTexto = esAprobar ? 'Asignar' : 'Mover a';
     
-    if (!window.confirm(`¿${accionTexto} bicicleta al casillero [ ${casilleroId} ]?`)) return;
-
-    try {
-      if (esAprobar) {
-        await aprobarIngreso(selectedItem, casilleroId);
-        setBicicleteroActual(prev => ({...prev, bicicletasGuardadas: prev.bicicletasGuardadas + 1}));
-      } else {
-        await modificarUbicacion(selectedItem, casilleroId);
+    // Definimos la acción que se ejecutará si dice "SÍ"
+    const ejecutarAsignacion = async () => {
+      try {
+        if (esAprobar) {
+          await aprobarIngreso(selectedItem, casilleroId);
+          setBicicleteroActual(prev => ({...prev, bicicletasGuardadas: prev.bicicletasGuardadas + 1}));
+        } else {
+          await modificarUbicacion(selectedItem, casilleroId);
+        }
+        setIsModalOpen(false); // Cerramos el modal de bolitas
+        setSelectedItem(null);
+        cargarDatos(bicicleteroActual.id, false);
+      } catch (error) {
+        alert(` Error: ${error.response?.data?.message || error.message}`);
       }
-      setIsModalOpen(false);
-      setSelectedItem(null);
-      cargarDatos(bicicleteroActual.id, false);
-    } catch (error) {
-      alert(` Error: ${error.response?.data?.message || error.message}`);
-    }
+    };
+
+    // Abrimos la confirmación
+    solicitarConfirmacion(
+      "Confirmar Ubicación", 
+      `¿Estás seguro de ${accionTexto.toLowerCase()} la bicicleta en el casillero ${casilleroId}?`,
+      ejecutarAsignacion,
+      false
+    );
   };
 
-  const handleRechazar = async (id) => {
-    const motivo = prompt("Ingrese motivo del rechazo:");
-    if (!motivo) return;
-    try {
-      await rechazarIngreso(id, motivo);
-      cargarDatos(bicicleteroActual.id, false);
-    } catch (error) { alert(` Error: ${error.response?.data?.message || error.message}`); }
+  // 2. CONFIRMAR RECHAZO (Sin escribir motivo)
+  const handleRechazar = (id) => {
+    const ejecutarRechazo = async () => {
+      try {
+        await rechazarIngreso(id, "Sin motivo especificado"); // Enviamos string genérico
+        cargarDatos(bicicleteroActual.id, false);
+      } catch (error) { alert(` Error: ${error.response?.data?.message || error.message}`); }
+    };
+
+    solicitarConfirmacion(
+      "Rechazar Solicitud",
+      "¿Estás seguro de rechazar el ingreso de esta bicicleta? Esta acción no se puede deshacer.",
+      ejecutarRechazo,
+      true // Es peligroso/rojo
+    );
   };
 
-  const handleFinalizar = async (id) => {
-    if(!window.confirm("¿Confirmar salida?")) return;
-    try {
-      await finalizarEstadia(id);
-      setBicicleteroActual(prev => ({...prev, bicicletasGuardadas: prev.bicicletasGuardadas - 1}));
-      cargarDatos(bicicleteroActual.id, false);
-    } catch (error) { alert(` Error: ${error.response?.data?.message || error.message}`); }
+  // 3. CONFIRMAR SALIDA
+  const handleFinalizar = (id) => {
+    const ejecutarSalida = async () => {
+      try {
+        await finalizarEstadia(id);
+        setBicicleteroActual(prev => ({...prev, bicicletasGuardadas: prev.bicicletasGuardadas - 1}));
+        cargarDatos(bicicleteroActual.id, false);
+      } catch (error) { alert(` Error: ${error.response?.data?.message || error.message}`); }
+    };
+
+    solicitarConfirmacion(
+      "Confirmar Salida",
+      "¿El alumno ha retirado su bicicleta? Esto liberará el casillero.",
+      ejecutarSalida,
+      false // Azul/Normal
+    );
   };
 
   if (loading && !bicicleteroActual) return <div className="admin-layout"><p style={{padding:30}}>Cargando...</p></div>;
 
   return (
     <div className="admin-layout">
-      
       <SidebarGuardia 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -224,7 +239,7 @@ const GuardiaPanel = () => {
       />
 
       <main className="main-content">
-        
+        {/* Header */}
         <div style={{ 
           background: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' 
@@ -238,7 +253,7 @@ const GuardiaPanel = () => {
                       Ocupación: <strong>{bicicleteroActual?.bicicletasGuardadas} / {bicicleteroActual?.capacidad}</strong>
                   </p>
                   <span style={{fontSize:'0.7rem', background:'#e8f5e9', color:'#2e7d32', padding:'2px 6px', borderRadius:'4px', marginTop:'5px'}}>
-                    ● Tiempo Real
+                    ● En vivo
                   </span>
                 </div>
             </div>
@@ -256,6 +271,7 @@ const GuardiaPanel = () => {
             </div>
         </div>
 
+        {/* Tarjetas */}
         <div className="cards-grid">
             {activeTab === 'solicitudes' ? (
                 <Solicitudes 
@@ -271,9 +287,9 @@ const GuardiaPanel = () => {
                 />
             )}
         </div>
-
       </main>
 
+      {/* --- MODAL DE SELECCIÓN DE CASILLERO --- */}
       <CasilleroModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -282,6 +298,16 @@ const GuardiaPanel = () => {
         onSeleccionar={handleSeleccionarCasillero}
         titulo={modalMode === 'aprobar' ? 'Asignar Casillero' : 'Mover de Casillero'}
         accion={modalMode === 'aprobar' ? 'asignar' : 'mover'}
+      />
+
+      {/* --- NUEVO MODAL DE CONFIRMACIÓN --- */}
+      <ConfirmModal 
+        isOpen={confirmConfig.isOpen}
+        onClose={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
+        onConfirm={confirmConfig.action}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        isDanger={confirmConfig.isDanger}
       />
     </div>
   );
