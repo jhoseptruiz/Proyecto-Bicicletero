@@ -1,7 +1,7 @@
 import { AppDataSource } from "../config/configDb.js";
 import { Bicicletero } from "../entities/bicicletero.entity.js";
 import { RegistroUso } from "../entities/registroUso.entity.js"; // Asegúrate de importar esto
-import { LessThan, MoreThan, IsNull } from "typeorm";
+import { LessThan, MoreThan, IsNull, In } from "typeorm";
 
 const bicicleteroRepo = AppDataSource.getRepository(Bicicletero);
 const registroRepo = AppDataSource.getRepository(RegistroUso);
@@ -22,7 +22,7 @@ export async function obtenerSolicitudesPendientes(bicicleteroId) {
   return await registroRepo.find({
     where: {
       bicicletero: { id: bicicleteroId },
-      estado: "pendiente",
+      estado: In(["pendiente", "solicitando_retiro"]),
     },
     relations: ["bicicleta", "usuario"], // Para ver foto, marca y RUT
     order: { fechaIngreso: "ASC" }

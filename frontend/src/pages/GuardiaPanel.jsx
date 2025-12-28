@@ -323,6 +323,7 @@ const GuardiaPanel = () => {
                   solicitudes={solicitudes}
                   onAprobar={abrirModalAprobar}
                   onRechazar={handleRechazar}
+                  onFinalizar={handleFinalizar}
                 />
               ) : (
                 <EnCustodia
