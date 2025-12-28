@@ -23,6 +23,9 @@ const Solicitudes = ({ solicitudes, onAprobar, onRechazar }) => {
             <h3>{sol.usuario.nombre} {sol.usuario.apellido}</h3>
             <p className="rut-text">{sol.usuario.rut}</p>
             <p className="brand-text">Marca: {sol.bicicleta.marca}</p>
+            <p className="time-text">
+              Solicitud: {new Date(sol.fechaIngreso).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+            </p>
             <div className="card-actions">
               <button className="btn-action btn-approve" onClick={() => onAprobar(sol.id)}>
                 Asignar Casillero
