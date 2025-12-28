@@ -623,3 +623,57 @@
         z-index: 1000;
     }
 }
+
+/* ESTILOS DEL MODAL QR */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    backdrop-filter: blur(3px);
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    position: relative;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+.qr-display-container {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+    border: 2px dashed #dee2e6;
+    display: flex;
+    justify-content: center;
+}
+
+.qr-image {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+.modal-actions {
+    display: flex; gap: 10px; justify-content: center; margin-top: 20px;
+}
+
+.btn-close {
+    position: absolute; top: 15px; right: 15px;
+    background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #666;
+}
+
+@keyframes modalSlideIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}

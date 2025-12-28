@@ -12,7 +12,7 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
   const [contextData, setContextData] = useState(null); // Datos del bicicletero escaneado
   const [selectedBicicleta, setSelectedBicicleta] = useState('');
   const [mensaje, setMensaje] = useState(null);
-  const [expectedQr, setExpectedQr] = useState(null); // Validación de seguridad: QR esperado
+  const [expectedId, setExpectedId] = useState(null); // CAMBIO: Validamos por ID, no por string completo
 
   const scannerRef = useRef(null);
   const location = useLocation();
@@ -21,18 +21,17 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
     cargarBicicletas();
 
     if (location.state?.preSelectedBicicletero) {
-      // Flujo estricto: Si viene del mapa, iniciamos escaneo esperando SOLO ese QR
       handlePreSelected(location.state.preSelectedBicicletero);
     } else {
-      // Limpieza normal si no hay preselección
       return () => stopScanner();
     }
   }, []);
 
   const handlePreSelected = (bicicletero) => {
-    setExpectedQr(bicicletero.codigoQr);
+    // CAMBIO: Guardamos el ID esperado, no el string del QR completo
+    setExpectedId(bicicletero.id);
     setMensaje({ tipo: 'info', texto: `Por favor escanea el QR de: ${bicicletero.ubicacion}` });
-    startScanner(); // Iniciamos camara forzosamente
+    startScanner();
   };
 
   const cargarBicicletas = async () => {
@@ -44,12 +43,14 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
     }
   };
 
-
   const startScanner = () => {
     setStep('SCANNING');
     setContextData(null);
 
     setTimeout(() => {
+      // Importante: Asegurarse de que el elemento 'reader' exista antes de instanciar
+      if (!document.getElementById("reader")) return;
+
       const scanner = new Html5QrcodeScanner(
         "reader",
         { fps: 10, qrbox: { width: 250, height: 250 } },
@@ -67,38 +68,60 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
     }
   };
 
+  // --- AQUÍ ESTABA EL ERROR PRINCIPAL ---
   const onScanSuccess = async (decodedText) => {
     stopScanner();
     setStep('PROCESSING');
     setMensaje({ tipo: 'info', texto: "Verificando QR y Ubicación..." });
 
     try {
-      if (expectedQr && decodedText !== expectedQr) {
+      // 1. Intentamos Parsear el JSON del QR
+      let datosQr;
+      try {
+        datosQr = JSON.parse(decodedText);
+      } catch (e) {
+        throw new Error("El código QR escaneado no es válido (formato incorrecto).");
+      }
+
+      // 2. Validar que sea un QR de bicicletero
+      if (!datosQr.id || datosQr.tipo !== 'bicicletero_ubicacion') {
+        throw new Error("Este QR no corresponde a un bicicletero del sistema.");
+      }
+
+      // 3. Validación de seguridad (si venía del mapa)
+      // Comparamos IDs en lugar de strings completos para evitar errores de formato
+      if (expectedId && parseInt(datosQr.id) !== parseInt(expectedId)) {
         throw new Error("El QR escaneado no corresponde al bicicletero seleccionado en el mapa.");
       }
 
-      if (!navigator.geolocation) throw new Error("GPS no soportado");
+      if (!navigator.geolocation) throw new Error("GPS no soportado en este dispositivo.");
 
       navigator.geolocation.getCurrentPosition(
         async (position) => {
+          // CORRECCIÓN: Usamos 'datosQr' y no la variable inexistente 'bicicletero'
           setContextData({
-            qr: decodedText,
-            ...bicicletero,
+            qrRaw: decodedText, // Guardamos el texto original por si acaso
+            id: datosQr.id,
+            ubicacion: datosQr.ubicacion || `Bicicletero #${datosQr.id}`, // Fallback si no viene nombre
             lat: position.coords.latitude,
             lng: position.coords.longitude
           });
+
           setStep('DECIDING');
           setMensaje(null);
         },
         (err) => {
-          setMensaje({ tipo: 'error', texto: "Error GPS: " + err.message });
+          console.error(err);
+          setMensaje({ tipo: 'error', texto: "Error obteniendo ubicación GPS. Asegúrate de activarla." });
           setStep('WAITING');
-        }
+        },
+        { timeout: 10000, enableHighAccuracy: true } // Opciones para mejorar GPS
       );
 
     } catch (error) {
+      console.error(error);
       setMensaje({ tipo: 'error', texto: error.message || "QR Inválido" });
-      setStep('WAITING'); // Volver a permitir intento si falla
+      setStep('WAITING');
     }
   };
 
@@ -106,42 +129,47 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
     // console.warn(error);
   };
 
-
-  const ejecutarAccion = async () => {
+ const ejecutarAccion = async () => {
     if (!selectedBicicleta) {
       alert("Selecciona una bicicleta");
       return;
     }
 
     setStep('PROCESSING');
-    setMensaje({ tipo: 'info', texto: "Procesando solicitud..." });
+    setMensaje({ tipo: 'info', texto: "Procesando solicitud con el servidor..." });
 
     try {
-      const { qr, lat, lng } = contextData;
-      const res = await scanQr(qr, lat, lng, selectedBicicleta);
-      setMensaje({ tipo: 'success', texto: res.message });
+      // CAMBIO AQUÍ: Usamos contextData.id en lugar de contextData.qrRaw
+      const { id, lat, lng } = contextData;
+      
+      // Enviamos el ID (ej: 15) como primer parámetro
+      const res = await scanQr(id, lat, lng, selectedBicicleta);
+      
+      setMensaje({ tipo: 'success', texto: res.message || "Operación exitosa" });
       setStep('RESULT');
-      cargarBicicletas(); // Recargar estado para ver cambio
+      cargarBicicletas(); 
     } catch (error) {
       setMensaje({ tipo: 'error', texto: error.message || "Error al procesar" });
-      setStep('DECIDING'); // Dejar intentar de nuevo
+      setStep('DECIDING'); 
     }
   };
-
-
 
   const renderDeciding = () => {
     if (!contextData) return null;
 
     // Filtros Inteligentes
-    const bicisAdentro = bicicletas.filter(b => b.estadoActual?.estaAdentro && b.estadoActual?.bicicleteroId == contextData.id);
+    // Nota: Asegúrate que 'b.estadoActual.bicicleteroId' coincida en tipo (string/int) con contextData.id
+    const bicisAdentro = bicicletas.filter(b =>
+      b.estadoActual?.estaAdentro &&
+      parseInt(b.estadoActual?.bicicleteroId) === parseInt(contextData.id)
+    );
 
-    // Bicicletas disponibles (afuera de cualquier lado)
     const bicisAfuera = bicicletas.filter(b => !b.estadoActual?.estaAdentro);
 
     return (
       <div>
-        <h3 style={{ marginBottom: '5px' }}>📍 {contextData.ubicacion}</h3>
+        {/* Mostramos la ubicación extraída del QR o ID */}
+        <h3 style={{ marginBottom: '5px' }}>📍 Bicicletero #{contextData.id}</h3>
         <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '15px' }}>Selecciona qué deseas hacer:</p>
 
         {bicisAdentro.length > 0 && (
@@ -155,7 +183,7 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
               <option value="">-- Selecciona para Retirar --</option>
               {bicisAdentro.map(b => <option key={b.id} value={b.id}>{b.marca}</option>)}
             </select>
-            <button onClick={ejecutarAccion} disabled={!selectedBicicleta || !bicisAdentro.find(b => b.id == selectedBicicleta)} className="btn-primary" style={{ backgroundColor: '#17a2b8', width: '100%', color: 'white', padding: '10px', border: 'none', borderRadius: '4px' }}>
+            <button onClick={ejecutarAccion} disabled={!selectedBicicleta} className="btn-primary" style={{ backgroundColor: '#17a2b8', width: '100%', color: 'white', padding: '10px', border: 'none', borderRadius: '4px' }}>
               Confirmar Retiro
             </button>
           </div>
@@ -174,7 +202,7 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
                 <option value="">-- Selecciona para Ingresar --</option>
                 {bicisAfuera.map(b => <option key={b.id} value={b.id}>{b.marca}</option>)}
               </select>
-              <button onClick={ejecutarAccion} disabled={!selectedBicicleta || !bicisAfuera.find(b => b.id == selectedBicicleta)} className="btn-primary" style={{ backgroundColor: '#28a745', width: '100%', color: 'white', padding: '10px', border: 'none', borderRadius: '4px' }}>
+              <button onClick={ejecutarAccion} disabled={!selectedBicicleta} className="btn-primary" style={{ backgroundColor: '#28a745', width: '100%', color: 'white', padding: '10px', border: 'none', borderRadius: '4px' }}>
                 Confirmar Ingreso
               </button>
             </>
@@ -207,7 +235,6 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
   return (
     <div style={{ border: '1px solid #ccc', padding: '20px', borderRadius: '8px', marginTop: '20px' }}>
 
-      {/* HEADER STATUS */}
       {mensaje && (
         <div style={{
           padding: '10px', marginBottom: '15px', borderRadius: '4px',
@@ -218,11 +245,10 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
         </div>
       )}
 
-      {/* VIEW SWITCHER */}
       {step === 'WAITING' && (
         <div style={{ textAlign: 'center' }}>
           <h2>¿Listo para chequear?</h2>
-          <p>Escanea el código QR del bicicletero para identificarlo.</p>
+          <p>Escanea el código QR del bicicletero.</p>
           <button onClick={startScanner} style={{ padding: '15px 30px', fontSize: '18px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '50px', cursor: 'pointer' }}>
             📷 Escanear QR
           </button>
@@ -233,9 +259,6 @@ function Scanner({ alCerrar, alIrAlPerfil }) {
         <div>
           <h3>Escanear Código...</h3>
           <div id="reader" width="100%"></div>
-
-
-
           <button onClick={() => {
             stopScanner();
             if (alCerrar) alCerrar();
