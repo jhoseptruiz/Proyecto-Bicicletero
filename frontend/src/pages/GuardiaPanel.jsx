@@ -263,9 +263,6 @@ const GuardiaPanel = () => {
                   <p style={{ margin: '5px 0 0', color: '#666' }}>
                     Ocupación: <strong>{bicicleteroActual?.bicicletasGuardadas} / {bicicleteroActual?.capacidad}</strong>
                   </p>
-                  <span style={{ fontSize: '0.7rem', background: '#e8f5e9', color: '#2e7d32', padding: '2px 6px', borderRadius: '4px', marginTop: '5px' }}>
-                    ● En vivo
-                  </span>
                 </div>
               </div>
 

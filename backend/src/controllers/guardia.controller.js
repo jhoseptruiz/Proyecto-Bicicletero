@@ -49,7 +49,8 @@ export async function postAprobarIngreso(req, res) {
     const registro = await aprobarIngreso(id, casillero, rutGuardia);
     handleSuccess(res, 200, "Ingreso aprobado exitosamente", registro);
   } catch (error) {
-    handleErrorServer(res, 400, "Error al aprobar ingreso", error.message);
+    console.error("Detalle del error:", error); // Esto ayuda a verlo en la terminal
+    handleErrorServer(res, 400, error.message, error.message);
   }
 }
 
