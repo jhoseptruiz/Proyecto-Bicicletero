@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'; // <--- 1. AGREGAMOS useRef
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   getMisBicicleteros, 
@@ -34,13 +34,12 @@ const GuardiaPanel = () => {
   const [selectedItem, setSelectedItem] = useState(null); 
   const [modalMode, setModalMode] = useState('aprobar');
 
-  // --- REFS PARA NOTIFICACIONES ---
-  const prevSolicitudesIds = useRef(new Set()); // Guardamos los IDs que ya conocemos
-  const isFirstLoad = useRef(true); // Para no notificar apenas entras a la página
+  // Refs para notificaciones
+  const prevSolicitudesIds = useRef(new Set());
+  const isFirstLoad = useRef(true);
 
-  // 1. INICIALIZACIÓN Y PERMISOS
+  // Inicialización
   useEffect(() => {
-    // Pedir permiso para notificaciones si no lo tenemos
     if ('Notification' in window && Notification.permission !== 'granted') {
       Notification.requestPermission();
     }
@@ -59,58 +58,77 @@ const GuardiaPanel = () => {
     init();
   }, []);
 
-  // 2. DETECTOR DE NUEVAS SOLICITUDES (NOTIFICADOR)
+  // Detector de notificaciones
   useEffect(() => {
-    // Si es la primera carga, solo guardamos lo que hay y marcamos como "listo"
     if (isFirstLoad.current) {
       if (solicitudes.length > 0) {
-         // Guardamos los IDs iniciales para no avisar de lo que ya estaba ahí
          prevSolicitudesIds.current = new Set(solicitudes.map(s => s.id));
       }
       isFirstLoad.current = false;
       return;
     }
 
-    // Buscamos si hay alguna solicitud en la lista nueva que NO estaba en la lista vieja
     const nuevas = solicitudes.filter(s => !prevSolicitudesIds.current.has(s.id));
 
     if (nuevas.length > 0) {
-      // ¡Encontramos una nueva! Enviamos notificación al dispositivo
-      const ultima = nuevas[0]; // Tomamos la primera nueva para el texto
-      
+      const ultima = nuevas[0];
       if (Notification.permission === 'granted') {
-        new Notification("🔔 Nueva Solicitud de Ingreso", {
-          body: `${ultima.usuario.nombre} quiere ingresar una ${ultima.bicicleta.marca}`,
-          icon: "/vite.svg", // Puedes poner un icono de bici aquí si tienes
-          vibrate: [200, 100, 200] // Vibración en móviles (bzz-bzz)
+        new Notification("🔔 Nueva Solicitud", {
+          body: `${ultima.usuario.nombre} - ${ultima.bicicleta.marca}`,
+          icon: "/vite.svg",
+          requireInteraction: true // Mantiene la notificación visible hasta que el usuario la clickea
         });
       }
     }
-
-    // Actualizamos la memoria con los IDs actuales para la próxima comparación
     prevSolicitudesIds.current = new Set(solicitudes.map(s => s.id));
+  }, [solicitudes]);
 
-  }, [solicitudes]); // Se ejecuta cada vez que el polling actualiza 'solicitudes'
 
-
-  // --- POLLING AUTOMÁTICO ---
+  // --- POLLING OPTIMIZADO CON WEB WORKER ---
+  // Esto evita que el navegador "duerma" el intervalo en segundo plano
   useEffect(() => {
-    let intervalo;
+    if (!bicicleteroActual) return;
 
-    if (bicicleteroActual) {
-      cargarDatos(bicicleteroActual.id, true); // Primera carga visual
+    // 1. Carga inicial inmediata
+    cargarDatos(bicicleteroActual.id, true);
 
-      // Polling cada 5 segundos
-      intervalo = setInterval(() => {
-        cargarDatos(bicicleteroActual.id, false); // Carga silenciosa
-      }, 5000); 
-    }
+    // 2. Definimos el código del Worker como un Blob (para no crear archivos extra)
+    const workerCode = `
+      let intervalId;
+      self.onmessage = function(e) {
+        if (e.data === 'start') {
+          // Ejecutar cada 4 segundos
+          intervalId = setInterval(() => {
+            self.postMessage('tick');
+          }, 4000); 
+        } else if (e.data === 'stop') {
+          clearInterval(intervalId);
+        }
+      };
+    `;
 
-    return () => { if (intervalo) clearInterval(intervalo); };
-  }, [bicicleteroActual]);
+    // 3. Crear el Worker
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    const worker = new Worker(URL.createObjectURL(blob));
+
+    // 4. Cuando el Worker manda un 'tick', cargamos los datos
+    worker.onmessage = () => {
+      cargarDatos(bicicleteroActual.id, false);
+    };
+
+    // Iniciar el worker
+    worker.postMessage('start');
+
+    // Limpieza al desmontar
+    return () => {
+      worker.postMessage('stop');
+      worker.terminate();
+      URL.revokeObjectURL(blob); // Liberar memoria
+    };
+
+  }, [bicicleteroActual]); // Se recrea si cambia el bicicletero
 
 
-  // Función de carga
   const cargarDatos = async (id, mostrarLoading = true) => {
     try {
       if (mostrarLoading) setLoading(true);
@@ -220,7 +238,7 @@ const GuardiaPanel = () => {
                       Ocupación: <strong>{bicicleteroActual?.bicicletasGuardadas} / {bicicleteroActual?.capacidad}</strong>
                   </p>
                   <span style={{fontSize:'0.7rem', background:'#e8f5e9', color:'#2e7d32', padding:'2px 6px', borderRadius:'4px', marginTop:'5px'}}>
-                    ● En vivo
+                    ● Tiempo Real
                   </span>
                 </div>
             </div>
