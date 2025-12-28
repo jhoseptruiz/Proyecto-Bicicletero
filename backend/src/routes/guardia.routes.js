@@ -6,7 +6,8 @@ import {
     postRechazarIngreso,
     getActivos,
     postFinalizarSalida,
-    putModificarUbicacion
+    putModificarUbicacion,
+    getResumenSolicitudes
 } from "../controllers/guardia.controller.js";
 import { verificarToken, checkRol } from "../middlewares/auth.middleware.js";
 
@@ -28,5 +29,8 @@ router.post("/egreso/:id/finalizar", postFinalizarSalida);
 
 // 4. Modificar (Reubicar)
 router.put("/registro/:id/ubicacion", putModificarUbicacion); // Body: { nuevoCasillero: "B2" }
+
+// Agrega esta línea antes de las rutas con :id para evitar conflictos
+router.get("/resumen", verificarToken, checkRol(["guardia"]), getResumenSolicitudes);
 
 export default router;
