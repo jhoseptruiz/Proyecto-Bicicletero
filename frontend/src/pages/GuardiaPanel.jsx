@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // <--- 1. AGREGAMOS useRef
 import { useNavigate } from 'react-router-dom';
 import { 
   getMisBicicleteros, 
@@ -34,8 +34,17 @@ const GuardiaPanel = () => {
   const [selectedItem, setSelectedItem] = useState(null); 
   const [modalMode, setModalMode] = useState('aprobar');
 
-  // Inicialización (Cargar lista de bicicleteros)
+  // --- REFS PARA NOTIFICACIONES ---
+  const prevSolicitudesIds = useRef(new Set()); // Guardamos los IDs que ya conocemos
+  const isFirstLoad = useRef(true); // Para no notificar apenas entras a la página
+
+  // 1. INICIALIZACIÓN Y PERMISOS
   useEffect(() => {
+    // Pedir permiso para notificaciones si no lo tenemos
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+
     async function init() {
       try {
         const bicis = await getMisBicicleteros();
@@ -50,38 +59,67 @@ const GuardiaPanel = () => {
     init();
   }, []);
 
-  // --- AUTOMATIZACIÓN (POLLING) --- 
+  // 2. DETECTOR DE NUEVAS SOLICITUDES (NOTIFICADOR)
+  useEffect(() => {
+    // Si es la primera carga, solo guardamos lo que hay y marcamos como "listo"
+    if (isFirstLoad.current) {
+      if (solicitudes.length > 0) {
+         // Guardamos los IDs iniciales para no avisar de lo que ya estaba ahí
+         prevSolicitudesIds.current = new Set(solicitudes.map(s => s.id));
+      }
+      isFirstLoad.current = false;
+      return;
+    }
+
+    // Buscamos si hay alguna solicitud en la lista nueva que NO estaba en la lista vieja
+    const nuevas = solicitudes.filter(s => !prevSolicitudesIds.current.has(s.id));
+
+    if (nuevas.length > 0) {
+      // ¡Encontramos una nueva! Enviamos notificación al dispositivo
+      const ultima = nuevas[0]; // Tomamos la primera nueva para el texto
+      
+      if (Notification.permission === 'granted') {
+        new Notification("🔔 Nueva Solicitud de Ingreso", {
+          body: `${ultima.usuario.nombre} quiere ingresar una ${ultima.bicicleta.marca}`,
+          icon: "/vite.svg", // Puedes poner un icono de bici aquí si tienes
+          vibrate: [200, 100, 200] // Vibración en móviles (bzz-bzz)
+        });
+      }
+    }
+
+    // Actualizamos la memoria con los IDs actuales para la próxima comparación
+    prevSolicitudesIds.current = new Set(solicitudes.map(s => s.id));
+
+  }, [solicitudes]); // Se ejecuta cada vez que el polling actualiza 'solicitudes'
+
+
+  // --- POLLING AUTOMÁTICO ---
   useEffect(() => {
     let intervalo;
 
     if (bicicleteroActual) {
-      // 1. Carga inicial rápida (con loading visible si es la primera vez)
-      cargarDatos(bicicleteroActual.id, true);
+      cargarDatos(bicicleteroActual.id, true); // Primera carga visual
 
-      // 2. Configurar actualización automática cada 5 segundos (silenciosa)
+      // Polling cada 5 segundos
       intervalo = setInterval(() => {
-        cargarDatos(bicicleteroActual.id, false); // <--- False para no mostrar "Cargando..."
+        cargarDatos(bicicleteroActual.id, false); // Carga silenciosa
       }, 5000); 
     }
 
-    // Limpieza: detener el reloj si cambiamos de bicicletero o salimos
-    return () => {
-      if (intervalo) clearInterval(intervalo);
-    };
-  }, [bicicleteroActual]); // Se reinicia si cambia el bicicletero seleccionado
+    return () => { if (intervalo) clearInterval(intervalo); };
+  }, [bicicleteroActual]);
 
 
-  // Función de carga mejorada: acepta parámetro 'mostrarLoading'
+  // Función de carga
   const cargarDatos = async (id, mostrarLoading = true) => {
     try {
-      if (mostrarLoading) setLoading(true); // Solo muestra spinner si se pide explícitamente
+      if (mostrarLoading) setLoading(true);
 
       const [pendientes, enCustodia] = await Promise.all([
         getSolicitudes(id),
         getActivos(id)
       ]);
       
-      // Actualizamos los estados. React es inteligente y solo repintará si algo cambió.
       setSolicitudes(pendientes);
       setActivos(enCustodia);
       
@@ -126,16 +164,15 @@ const GuardiaPanel = () => {
     try {
       if (esAprobar) {
         await aprobarIngreso(selectedItem, casilleroId);
-        // Actualizamos manualmente para feedback instantáneo antes del próximo polling
         setBicicleteroActual(prev => ({...prev, bicicletasGuardadas: prev.bicicletasGuardadas + 1}));
       } else {
         await modificarUbicacion(selectedItem, casilleroId);
       }
       setIsModalOpen(false);
       setSelectedItem(null);
-      cargarDatos(bicicleteroActual.id, false); // Recarga inmediata silenciosa
+      cargarDatos(bicicleteroActual.id, false);
     } catch (error) {
-      alert(`❌ Error: ${error.response?.data?.message || error.message}`);
+      alert(` Error: ${error.response?.data?.message || error.message}`);
     }
   };
 
@@ -145,7 +182,7 @@ const GuardiaPanel = () => {
     try {
       await rechazarIngreso(id, motivo);
       cargarDatos(bicicleteroActual.id, false);
-    } catch (e) { alert("Error al rechazar"); }
+    } catch (error) { alert(` Error: ${error.response?.data?.message || error.message}`); }
   };
 
   const handleFinalizar = async (id) => {
@@ -154,7 +191,7 @@ const GuardiaPanel = () => {
       await finalizarEstadia(id);
       setBicicleteroActual(prev => ({...prev, bicicletasGuardadas: prev.bicicletasGuardadas - 1}));
       cargarDatos(bicicleteroActual.id, false);
-    } catch (e) { alert("Error al finalizar"); }
+    } catch (error) { alert(` Error: ${error.response?.data?.message || error.message}`); }
   };
 
   if (loading && !bicicleteroActual) return <div className="admin-layout"><p style={{padding:30}}>Cargando...</p></div>;
@@ -182,7 +219,6 @@ const GuardiaPanel = () => {
                   <p style={{ margin: '5px 0 0', color: '#666' }}>
                       Ocupación: <strong>{bicicleteroActual?.bicicletasGuardadas} / {bicicleteroActual?.capacidad}</strong>
                   </p>
-                  {/* Pequeño indicador visual de "En vivo" (Opcional) */}
                   <span style={{fontSize:'0.7rem', background:'#e8f5e9', color:'#2e7d32', padding:'2px 6px', borderRadius:'4px', marginTop:'5px'}}>
                     ● En vivo
                   </span>
@@ -199,14 +235,6 @@ const GuardiaPanel = () => {
                         <option key={b.id} value={b.id}>{b.ubicacion}</option>
                     ))}
                 </select>
-                {/* Botón manual (opcional, ya no es tan necesario pero bueno dejarlo) */}
-                <button 
-                  onClick={() => cargarDatos(bicicleteroActual.id, true)} 
-                  style={{ background: '#f0f0f0', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer' }}
-                  title="Forzar actualización"
-                >
-                  ↻
-                </button>
             </div>
         </div>
 
