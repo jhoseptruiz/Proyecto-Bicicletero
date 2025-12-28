@@ -3,7 +3,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-import ProtectedRoute from './components/ProtectedRoute';
+import RutaProtegida from './components/RutaProtegida';
 
 import AuthPage from './pages/AuthPage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -26,46 +26,46 @@ function App() {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <RutaProtegida allowedRoles={['admin']}>
               <AdminDashboard />
-            </ProtectedRoute>
+            </RutaProtegida>
           }
         />
         <Route
           path="/guardia"
           element={
-            <ProtectedRoute allowedRoles={['guardia']}>
+            <RutaProtegida allowedRoles={['guardia']}>
               <GuardiaPanel />
-            </ProtectedRoute>
+            </RutaProtegida>
           }
         />
 
-        {/* --- RUTAS PROTEGIDAS (Alumno) --- */}
+        {/* --- RUTAS PROTEGIDAS (Roles: Alumno y Staff) --- */}
         <Route
           path="/alumno"
           element={
-            <ProtectedRoute allowedRoles={['alumno']}>
+            <RutaProtegida allowedRoles={['alumno', 'admin', 'guardia']}>
               <AlumnoHome />
-            </ProtectedRoute>
+            </RutaProtegida>
           }
         />
         <Route
           path="/perfil"
           element={
-            <ProtectedRoute allowedRoles={['alumno']}>
+            <RutaProtegida allowedRoles={['alumno', 'admin', 'guardia']}>
               <PerfilPage />
-            </ProtectedRoute>
+            </RutaProtegida>
           }
         />
         <Route
           path="/scan"
           element={
-            <ProtectedRoute allowedRoles={['alumno']}>
+            <RutaProtegida allowedRoles={['alumno', 'admin', 'guardia']}>
               <div style={{ padding: '20px' }}>
                 <a href="/alumno" style={{ marginBottom: '20px', display: 'block' }}>← Volver al Inicio</a>
                 <Scanner />
               </div>
-            </ProtectedRoute>
+            </RutaProtegida>
           }
         />
 

@@ -1,23 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  getMisBicicleteros, 
-  getSolicitudes, 
-  getActivos, 
-  aprobarIngreso, 
-  rechazarIngreso, 
+import {
+  getMisBicicleteros,
+  getSolicitudes,
+  getActivos,
+  aprobarIngreso,
+  rechazarIngreso,
   finalizarEstadia,
-  modificarUbicacion 
+  modificarUbicacion
 } from '../services/guardia.service';
 
-import SidebarGuardia from '../components/guardia/SidebarGuardia';
+import Sidebar from '../components/Sidebar';
 import Solicitudes from '../components/guardia/Solicitudes';
 import EnCustodia from '../components/guardia/EnCustodia';
 import CasilleroModal from '../components/guardia/CasilleroModal';
-import ConfirmModal from '../components/guardia/ConfirmModal'; // <--- IMPORTADO
+import ConfirmModal from '../components/guardia/ConfirmModal';
+import AlumnoContent from '../components/AlumnoContent';
+import PerfilContent from '../components/PerfilContent';
 
-import './AdminDashboard.css'; 
-import './GuardiaPanel.css'; 
+import './AdminDashboard.css';
+import './GuardiaPanel.css';
 
 const GuardiaPanel = () => {
   const navigate = useNavigate();
@@ -29,10 +31,10 @@ const GuardiaPanel = () => {
   const [activos, setActivos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('solicitudes');
-  
+
   // Estados de Modales
   const [isModalOpen, setIsModalOpen] = useState(false); // Modal de Casilleros (Bolitas)
-  const [selectedItem, setSelectedItem] = useState(null); 
+  const [selectedItem, setSelectedItem] = useState(null);
   const [modalMode, setModalMode] = useState('aprobar');
 
   // --- NUEVO ESTADO PARA CONFIRMACIONES ---
@@ -72,7 +74,7 @@ const GuardiaPanel = () => {
   useEffect(() => {
     if (isFirstLoad.current) {
       if (solicitudes.length > 0) {
-         prevSolicitudesIds.current = new Set(solicitudes.map(s => s.id));
+        prevSolicitudesIds.current = new Set(solicitudes.map(s => s.id));
       }
       isFirstLoad.current = false;
       return;
@@ -166,13 +168,13 @@ const GuardiaPanel = () => {
   const handleSeleccionarCasillero = (casilleroId) => {
     const esAprobar = modalMode === 'aprobar';
     const accionTexto = esAprobar ? 'Asignar' : 'Mover a';
-    
+
     // Definimos la acción que se ejecutará si dice "SÍ"
     const ejecutarAsignacion = async () => {
       try {
         if (esAprobar) {
           await aprobarIngreso(selectedItem, casilleroId);
-          setBicicleteroActual(prev => ({...prev, bicicletasGuardadas: prev.bicicletasGuardadas + 1}));
+          setBicicleteroActual(prev => ({ ...prev, bicicletasGuardadas: prev.bicicletasGuardadas + 1 }));
         } else {
           await modificarUbicacion(selectedItem, casilleroId);
         }
@@ -186,7 +188,7 @@ const GuardiaPanel = () => {
 
     // Abrimos la confirmación
     solicitarConfirmacion(
-      "Confirmar Ubicación", 
+      "Confirmar Ubicación",
       `¿Estás seguro de ${accionTexto.toLowerCase()} la bicicleta en el casillero ${casilleroId}?`,
       ejecutarAsignacion,
       false
@@ -215,7 +217,7 @@ const GuardiaPanel = () => {
     const ejecutarSalida = async () => {
       try {
         await finalizarEstadia(id);
-        setBicicleteroActual(prev => ({...prev, bicicletasGuardadas: prev.bicicletasGuardadas - 1}));
+        setBicicleteroActual(prev => ({ ...prev, bicicletasGuardadas: prev.bicicletasGuardadas - 1 }));
         cargarDatos(bicicleteroActual.id, false);
       } catch (error) { alert(` Error: ${error.response?.data?.message || error.message}`); }
     };
@@ -228,69 +230,86 @@ const GuardiaPanel = () => {
     );
   };
 
-  if (loading && !bicicleteroActual) return <div className="admin-layout"><p style={{padding:30}}>Cargando...</p></div>;
+  if (loading && !bicicleteroActual) return <div className="admin-layout"><p style={{ padding: 30 }}>Cargando...</p></div>;
+
+  // --- Navegación (Ahora todo es SPA) ---
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+  };
 
   return (
     <div className="admin-layout">
-      <SidebarGuardia 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        onLogout={handleLogout} 
+      <Sidebar
+        role="guardia"
+        activeTab={activeTab}
+        setActiveTab={handleTabChange}
+        onLogout={handleLogout}
       />
 
       <main className="main-content">
-        {/* Header */}
-        <div style={{ 
-          background: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' 
-        }}>
-            <div>
+
+        {(activeTab === 'solicitudes' || activeTab === 'custodia') && (
+          <>
+            {/* Header */}
+            <div style={{
+              background: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+            }}>
+              <div>
                 <h2 style={{ margin: 0, color: '#2c3e50', fontSize: '1.5rem' }}>
-                    {activeTab === 'solicitudes' ? 'Gestionar Solicitudes' : 'Bicicletas en Custodia'}
+                  {activeTab === 'solicitudes' ? 'Gestionar Solicitudes' : 'Bicicletas en Custodia'}
                 </h2>
-                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <p style={{ margin: '5px 0 0', color: '#666' }}>
-                      Ocupación: <strong>{bicicleteroActual?.bicicletasGuardadas} / {bicicleteroActual?.capacidad}</strong>
+                    Ocupación: <strong>{bicicleteroActual?.bicicletasGuardadas} / {bicicleteroActual?.capacidad}</strong>
                   </p>
-                  <span style={{fontSize:'0.7rem', background:'#e8f5e9', color:'#2e7d32', padding:'2px 6px', borderRadius:'4px', marginTop:'5px'}}>
+                  <span style={{ fontSize: '0.7rem', background: '#e8f5e9', color: '#2e7d32', padding: '2px 6px', borderRadius: '4px', marginTop: '5px' }}>
                     ● En vivo
                   </span>
                 </div>
-            </div>
+              </div>
 
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <select 
-                    style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }}
-                    value={bicicleteroActual?.id || ''} 
-                    onChange={handleBicicleteroChange}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <select
+                  style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }}
+                  value={bicicleteroActual?.id || ''}
+                  onChange={handleBicicleteroChange}
                 >
-                    {misBicicleteros.map(b => (
-                        <option key={b.id} value={b.id}>{b.ubicacion}</option>
-                    ))}
+                  {misBicicleteros.map(b => (
+                    <option key={b.id} value={b.id}>{b.ubicacion}</option>
+                  ))}
                 </select>
+              </div>
             </div>
-        </div>
 
-        {/* Tarjetas */}
-        <div className="cards-grid">
-            {activeTab === 'solicitudes' ? (
-                <Solicitudes 
-                    solicitudes={solicitudes} 
-                    onAprobar={abrirModalAprobar} 
-                    onRechazar={handleRechazar} 
+            {/* Tarjetas */}
+            <div className="cards-grid">
+              {activeTab === 'solicitudes' ? (
+                <Solicitudes
+                  solicitudes={solicitudes}
+                  onAprobar={abrirModalAprobar}
+                  onRechazar={handleRechazar}
                 />
-            ) : (
-                <EnCustodia 
-                    activos={activos} 
-                    onCambiarCasillero={abrirModalCambiar} 
-                    onFinalizar={handleFinalizar} 
+              ) : (
+                <EnCustodia
+                  activos={activos}
+                  onCambiarCasillero={abrirModalCambiar}
+                  onFinalizar={handleFinalizar}
                 />
-            )}
-        </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {activeTab === 'perfil' && <PerfilContent />}
+        {activeTab === 'ir_a_alumno' && (
+          <AlumnoContent onGoToProfile={() => setActiveTab('perfil')} />
+        )}
+
       </main>
 
       {/* --- MODAL DE SELECCIÓN DE CASILLERO --- */}
-      <CasilleroModal 
+      <CasilleroModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         capacidad={bicicleteroActual?.capacidad || 0}
@@ -301,7 +320,7 @@ const GuardiaPanel = () => {
       />
 
       {/* --- NUEVO MODAL DE CONFIRMACIÓN --- */}
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={confirmConfig.isOpen}
         onClose={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
         onConfirm={confirmConfig.action}
