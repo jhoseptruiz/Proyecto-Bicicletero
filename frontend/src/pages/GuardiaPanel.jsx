@@ -21,6 +21,9 @@ import PerfilContent from '../components/PerfilContent';
 import './AdminDashboard.css';
 import './GuardiaPanel.css';
 
+// Constante de audio
+const NOTIFICACION_AUDIO = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+
 const GuardiaPanel = () => {
   const navigate = useNavigate();
 
@@ -33,29 +36,28 @@ const GuardiaPanel = () => {
   const [activeTab, setActiveTab] = useState('solicitudes');
 
   // Estados de Modales
-  const [isModalOpen, setIsModalOpen] = useState(false); // Modal de Casilleros (Bolitas)
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [modalMode, setModalMode] = useState('aprobar');
 
-  // --- NUEVO ESTADO PARA CONFIRMACIONES ---
+  // Estado para Confirmaciones
   const [confirmConfig, setConfirmConfig] = useState({
     isOpen: false,
     title: '',
     message: '',
-    action: null, // La función a ejecutar si dice "Sí"
+    action: null,
     isDanger: false
   });
 
-  // Refs para notificaciones
+  // Estado de Permisos de Notificación
+  const [permisoNotificacion, setPermisoNotificacion] = useState(Notification.permission);
+
+  // Refs
   const prevSolicitudesIds = useRef(new Set());
   const isFirstLoad = useRef(true);
 
   // Inicialización
   useEffect(() => {
-    if ('Notification' in window && Notification.permission !== 'granted') {
-      Notification.requestPermission();
-    }
-
     async function init() {
       try {
         const bicis = await getMisBicicleteros();
@@ -63,34 +65,90 @@ const GuardiaPanel = () => {
         if (bicis.length > 0) setBicicleteroActual(bicis[0]);
       } catch (error) {
         console.error("Error init:", error);
-      } finally {
+      } 
+      finally {
         setLoading(false);
       }
     }
     init();
   }, []);
 
-  // Notificaciones
-  useEffect(() => {
-    if (isFirstLoad.current) {
-      if (solicitudes.length > 0) {
-        prevSolicitudesIds.current = new Set(solicitudes.map(s => s.id));
+  // --- FUNCIÓN CORREGIDA: ACTIVAR NOTIFICACIONES ---
+  const activarNotificaciones = () => {
+    // Pedimos permiso al navegador
+    Notification.requestPermission().then(permission => {
+      setPermisoNotificacion(permission); // Actualizamos el estado visual
+
+      if (permission === 'granted') {
+        // CASO 1: ÉXITO - El usuario aceptó
+        
+        // Reproducimos y pausamos audio para "desbloquearlo" en móviles
+        NOTIFICACION_AUDIO.play().catch((e) => console.warn("Audio test:", e));
+        NOTIFICACION_AUDIO.pause();
+        NOTIFICACION_AUDIO.currentTime = 0;
+        
+        // Vibración de prueba
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        
+        alert("✅ Sonido y Alertas activados correctamente.");
+
+      } else if (permission === 'denied') {
+        // CASO 2: BLOQUEADO - El navegador ya las bloqueó antes
+        alert(
+          "⚠️ Las notificaciones están bloqueadas.\n\n" +
+          "Para activarlas:\n" +
+          "1. Toca el icono del 'Candado' 🔒 o 'Configuración' junto a la dirección web (arriba).\n" +
+          "2. Busca 'Permisos' o 'Notificaciones'.\n" +
+          "3. Selecciona 'Permitir' o 'Restablecer'.\n" +
+          "4. Recarga la página."
+        );
+      } else {
+        // CASO 3: DEFAULT - El usuario cerró el cuadro sin elegir
+        console.log("El usuario no tomó una decisión.");
       }
+    });
+  };
+
+  // Detector de Solicitudes (Worker + Vibración)
+  useEffect(() => {
+    if (loading) return;
+
+    if (isFirstLoad.current) {
+      // Guardamos lo que haya (sea 0 o 100) como "visto"
+      prevSolicitudesIds.current = new Set(solicitudes.map(s => s.id));
       isFirstLoad.current = false;
       return;
     }
+    
     const nuevas = solicitudes.filter(s => !prevSolicitudesIds.current.has(s.id));
+    
     if (nuevas.length > 0) {
       const ultima = nuevas[0];
+      const esIngreso = ultima.estado === 'pendiente';
+
+      // A. Vibración
+      if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+
+      // B. Sonido
+      NOTIFICACION_AUDIO.currentTime = 0;
+      NOTIFICACION_AUDIO.play().catch(e => console.log("Audio bloqueado:", e));
+
+      // C. Notificación Visual
       if (Notification.permission === 'granted') {
-        new Notification("🔔 Nueva Solicitud", {
-          body: `${ultima.usuario.nombre} - ${ultima.bicicleta.marca}`,
-          icon: "/vite.svg"
-        });
+        try {
+            new Notification(esIngreso ? "🚲 Nueva Bicicleta" : "📤 Solicitud de Retiro", {
+                body: `${ultima.usuario.nombre} quiere ${esIngreso ? 'ingresar' : 'retirar'} una ${ultima.bicicleta.marca}`,
+                icon: "/vite.svg",
+                vibrate: [200, 100, 200],
+                requireInteraction: true 
+            });
+        } catch (e) {
+            console.error("Error lanzando notificación:", e);
+        }
       }
     }
     prevSolicitudesIds.current = new Set(solicitudes.map(s => s.id));
-  }, [solicitudes]);
+  }, [solicitudes, loading]);
 
   // Polling con Worker
   useEffect(() => {
@@ -146,7 +204,6 @@ const GuardiaPanel = () => {
   };
 
   // --- LOGICA MODALES ---
-
   const abrirModalAprobar = (id) => {
     setSelectedItem(id);
     setModalMode('aprobar');
@@ -159,17 +216,14 @@ const GuardiaPanel = () => {
     setIsModalOpen(true);
   };
 
-  // Helper para abrir la confirmación
   const solicitarConfirmacion = (title, message, action, isDanger = false) => {
     setConfirmConfig({ isOpen: true, title, message, action, isDanger });
   };
 
-  // 1. CONFIRMAR ASIGNACIÓN (Desde el modal de bolitas)
   const handleSeleccionarCasillero = (casilleroId) => {
     const esAprobar = modalMode === 'aprobar';
     const accionTexto = esAprobar ? 'Asignar' : 'Mover a';
 
-    // Definimos la acción que se ejecutará si dice "SÍ"
     const ejecutarAsignacion = async () => {
       try {
         if (esAprobar) {
@@ -177,7 +231,7 @@ const GuardiaPanel = () => {
         } else {
           await modificarUbicacion(selectedItem, casilleroId);
         }
-        setIsModalOpen(false); // Cerramos el modal de bolitas
+        setIsModalOpen(false);
         setSelectedItem(null);
         cargarDatos(bicicleteroActual.id, false);
       } catch (error) {
@@ -185,7 +239,6 @@ const GuardiaPanel = () => {
       }
     };
 
-    // Abrimos la confirmación
     solicitarConfirmacion(
       "Confirmar Ubicación",
       `¿Estás seguro de ${accionTexto.toLowerCase()} la bicicleta en el casillero ${casilleroId}?`,
@@ -194,24 +247,22 @@ const GuardiaPanel = () => {
     );
   };
 
-  // 2. CONFIRMAR RECHAZO (Sin escribir motivo)
   const handleRechazar = (id) => {
     const ejecutarRechazo = async () => {
       try {
-        await rechazarIngreso(id, "Sin motivo especificado"); // Enviamos string genérico
+        await rechazarIngreso(id, "Sin motivo especificado");
         cargarDatos(bicicleteroActual.id, false);
       } catch (error) { alert(` Error: ${error.response?.data?.message || error.message}`); }
     };
 
     solicitarConfirmacion(
       "Rechazar Solicitud",
-      "¿Estás seguro de rechazar el ingreso de esta bicicleta? Esta acción no se puede deshacer.",
+      "¿Estás seguro de rechazar el ingreso? Esta acción no se puede deshacer.",
       ejecutarRechazo,
-      true // Es peligroso/rojo
+      true
     );
   };
 
-  // 3. CONFIRMAR SALIDA
   const handleFinalizar = (id) => {
     const ejecutarSalida = async () => {
       try {
@@ -224,16 +275,15 @@ const GuardiaPanel = () => {
       "Confirmar Salida",
       "¿El alumno ha retirado su bicicleta? Esto liberará el casillero.",
       ejecutarSalida,
-      false // Azul/Normal
+      false
     );
   };
 
-  if (loading && !bicicleteroActual) return <div className="admin-layout"><p style={{ padding: 30 }}>Cargando...</p></div>;
-
-  // --- Navegación (Ahora todo es SPA) ---
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
   };
+
+  if (loading && !bicicleteroActual) return <div className="admin-layout"><p style={{ padding: 30 }}>Cargando...</p></div>;
 
   return (
     <div className="admin-layout">
@@ -249,72 +299,73 @@ const GuardiaPanel = () => {
         {(activeTab === 'solicitudes' || activeTab === 'custodia') && (
           <>
             {/* Header */}
-          <div style={{ 
-              background: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px', 
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-              boxShadow: '0 2px 5px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '15px' 
-          }}>
-              
-              {/* SECCIÓN 1: TÍTULO Y OCUPACIÓN */}
-              <div>
-                  <h2 style={{ margin: 0, color: '#2c3e50', fontSize: '1.5rem' }}>
-                      {activeTab === 'solicitudes' ? 'Gestionar Solicitudes' : 'Bicicletas en Custodia'}
-                  </h2>
-                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginTop:'5px'}}>
-                      <p style={{ margin: 0, color: '#666', fontSize: '0.9rem' }}>
-                          Ocupación: <strong>{activos.length} / {bicicleteroActual?.capacidad}</strong>
-                      </p>
-                  </div>
-              </div>
+            <div style={{ 
+                background: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px', 
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                boxShadow: '0 2px 5px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '15px' 
+            }}>
+                
+                {/* SECCIÓN 1: TÍTULO Y OCUPACIÓN */}
+                <div>
+                    <h2 style={{ margin: 0, color: '#2c3e50', fontSize: '1.5rem' }}>
+                        {activeTab === 'solicitudes' ? 'Gestionar Solicitudes' : 'Bicicletas en Custodia'}
+                    </h2>
+                    <div style={{display:'flex', alignItems:'center', gap:'10px', marginTop:'5px'}}>
+                        <p style={{ margin: 0, color: '#666', fontSize: '0.9rem' }}>
+                            Ocupación: <strong>{activos.length} / {bicicleteroActual?.capacidad}</strong>
+                        </p>
+                    </div>
+                </div>
 
-              {/* SECCIÓN 2 (NUEVA): INFO DEL BICICLETERO */}
-              {bicicleteroActual && (
-                  <div style={{ 
-                      display: 'flex', gap: '20px', fontSize: '0.9rem', color: '#555', 
-                      background: '#f8f9fa', padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee' 
-                  }}>
-                      
-                      {/* Estado */}
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#999', fontWeight: 'bold' }}>
-                              Estado
-                          </span>
-                          <span style={{ 
-                              fontWeight: 'bold', 
-                              color: bicicleteroActual.estado === 'operativo' ? '#27ae60' : '#e74c3c', // Verde si operativo, Rojo si no
-                              textTransform: 'capitalize' 
-                          }}>
-                              {bicicleteroActual.estado || 'Desconocido'}
-                          </span>
-                      </div>
+                {/* SECCIÓN 2: INFO DEL BICICLETERO */}
+                {bicicleteroActual && (
+                    <div style={{ 
+                        display: 'flex', gap: '20px', fontSize: '0.9rem', color: '#555', 
+                        background: '#f8f9fa', padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee' 
+                    }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#999', fontWeight: 'bold' }}>Estado</span>
+                            <span style={{ fontWeight: 'bold', color: bicicleteroActual.estado === 'operativo' ? '#27ae60' : '#e74c3c', textTransform: 'capitalize' }}>
+                                {bicicleteroActual.estado || 'Desconocido'}
+                            </span>
+                        </div>
+                        <div style={{ width: '1px', background: '#ddd', height: '30px' }}></div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#999', fontWeight: 'bold' }}>Horario</span>
+                            <span style={{ fontWeight: 'bold', color: '#2c3e50' }}>
+                                {bicicleteroActual.horaApertura?.slice(0,5)} - {bicicleteroActual.horaCierre?.slice(0,5)} Hrs
+                            </span>
+                        </div>
+                    </div>
+                )}
 
-                      {/* Línea vertical separadora */}
-                      <div style={{ width: '1px', background: '#ddd', height: '30px' }}></div>
+                {/* SECCIÓN 3: SELECTOR Y BOTÓN ALERTAS */}
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    
+                    {/* BOTÓN CON ESTADO CONTROLADO */}
+                    {permisoNotificacion !== 'granted' && (
+                        <button 
+                            onClick={activarNotificaciones}
+                            style={{ 
+                                background: '#e74c3c', color: 'white', border: 'none', padding: '8px 15px', 
+                                borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem',
+                                animation: 'pulse 2s infinite'
+                            }}
+                            title="Haz clic para activar sonido y alertas"
+                        >
+                            🔔 Activar Alertas
+                        </button>
+                    )}
 
-                      {/* Horario */}
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#999', fontWeight: 'bold' }}>
-                              Horario
-                          </span>
-                          <span style={{ fontWeight: 'bold', color: '#2c3e50' }}>
-                              {/* Cortamos los segundos con .slice(0,5) para que diga 08:00 en vez de 08:00:00 */}
-                              {bicicleteroActual.horaApertura?.slice(0,5)} - {bicicleteroActual.horaCierre?.slice(0,5)} Hrs
-                          </span>
-                      </div>
-                  </div>
-              )}
-
-              {/* SECCIÓN 3: SELECTOR */}
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <select 
-                      style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc', background:'white', cursor:'pointer' }}
-                      value={bicicleteroActual?.id || ''} 
-                      onChange={handleBicicleteroChange}
-                  >
-                      {misBicicleteros.map(b => <option key={b.id} value={b.id}>{b.ubicacion}</option>)}
-                  </select>
-              </div>
-          </div>
+                    <select 
+                        style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc', background:'white', cursor:'pointer' }}
+                        value={bicicleteroActual?.id || ''} 
+                        onChange={handleBicicleteroChange}
+                    >
+                        {misBicicleteros.map(b => <option key={b.id} value={b.id}>{b.ubicacion}</option>)}
+                    </select>
+                </div>
+            </div>
 
             {/* Tarjetas */}
             <div className="cards-grid">
@@ -343,7 +394,6 @@ const GuardiaPanel = () => {
 
       </main>
 
-      {/* --- MODAL DE SELECCIÓN DE CASILLERO --- */}
       <CasilleroModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -354,7 +404,6 @@ const GuardiaPanel = () => {
         accion={modalMode === 'aprobar' ? 'asignar' : 'mover'}
       />
 
-      {/* --- NUEVO MODAL DE CONFIRMACIÓN --- */}
       <ConfirmModal
         isOpen={confirmConfig.isOpen}
         onClose={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
