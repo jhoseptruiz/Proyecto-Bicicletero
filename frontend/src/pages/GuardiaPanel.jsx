@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+// Asegúrate de usar la opción correcta de logout según tu servicio:
+// Opción A (si tienes export const logout): import { logout } from '../services/auth.service';
+// Opción B (manual, ver abajo en handleLogout)
+
 import { 
   getMisBicicleteros, 
   getSolicitudes, 
@@ -10,36 +14,33 @@ import {
   modificarUbicacion 
 } from '../services/guardia.service';
 
-// Importamos los componentes modulares
 import SidebarGuardia from '../components/guardia/SidebarGuardia';
 import Solicitudes from '../components/guardia/Solicitudes';
 import EnCustodia from '../components/guardia/EnCustodia';
 import CasilleroModal from '../components/guardia/CasilleroModal';
 
-// Reutilizamos el CSS del Admin para consistencia total
+// 1. IMPORTANTE: Importamos el CSS compartido PRIMERO
 import './AdminDashboard.css'; 
-// Si necesitas estilos extra específicos para las tarjetas, impórtalos aquí:
+// 2. Importamos el CSS específico del guardia (ya limpio) DESPUÉS
 import './GuardiaPanel.css'; 
 
 const GuardiaPanel = () => {
   const navigate = useNavigate();
 
-  // --- ESTADOS ---
+  // Estados
   const [misBicicleteros, setMisBicicleteros] = useState([]);
   const [bicicleteroActual, setBicicleteroActual] = useState(null);
   const [solicitudes, setSolicitudes] = useState([]);
   const [activos, setActivos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('solicitudes');
   
-  // UI States
-  const [activeTab, setActiveTab] = useState('solicitudes'); // 'solicitudes' | 'custodia'
-  
-  // Modal States
+  // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null); 
-  const [modalMode, setModalMode] = useState('aprobar'); // 'aprobar' | 'cambiar'
+  const [modalMode, setModalMode] = useState('aprobar');
 
-  // --- LOGICA DE CARGA ---
+  // Inicialización
   useEffect(() => {
     async function init() {
       try {
@@ -77,8 +78,8 @@ const GuardiaPanel = () => {
     }
   };
 
-  // --- HANDLERS ---
-const handleLogout = () => {
+  // Handlers
+  const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login');
@@ -89,7 +90,7 @@ const handleLogout = () => {
     setBicicleteroActual(misBicicleteros.find(b => b.id === id));
   };
 
-  // MODAL LOGIC
+  // Modal Logic
   const abrirModalAprobar = (id) => {
     setSelectedItem(id);
     setModalMode('aprobar');
@@ -115,7 +116,6 @@ const handleLogout = () => {
       } else {
         await modificarUbicacion(selectedItem, casilleroId);
       }
-      
       setIsModalOpen(false);
       setSelectedItem(null);
       cargarDatos(bicicleteroActual.id);
@@ -130,7 +130,7 @@ const handleLogout = () => {
     try {
       await rechazarIngreso(id, motivo);
       cargarDatos(bicicleteroActual.id);
-    } catch (error) { alert(` Error al rechazar: ${error.response?.data?.message || error.message}`); }
+    } catch (error) { alert(` Error: ${error.response?.data?.message || error.message}`); }
   };
 
   const handleFinalizar = async (id) => {
@@ -139,27 +139,30 @@ const handleLogout = () => {
       await finalizarEstadia(id);
       setBicicleteroActual(prev => ({...prev, bicicletasGuardadas: prev.bicicletasGuardadas - 1}));
       cargarDatos(bicicleteroActual.id);
-    } catch (error) { alert(` Error al finalizar: ${error.response?.data?.message || error.message}`); }
+    } catch (error) { alert(` Error: ${error.response?.data?.message || error.message}`); }
   };
 
-  if (loading && !bicicleteroActual) return <div className="admin-layout"><p style={{padding: 20}}>Cargando...</p></div>;
+  if (loading && !bicicleteroActual) return <div className="admin-layout"><p style={{padding:30}}>Cargando...</p></div>;
 
   return (
+    /* Usamos 'admin-layout' para que herede la estructura de tus compañeros */
     <div className="admin-layout">
-      {/* 1. SIDEBAR */}
+      
       <SidebarGuardia 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         onLogout={handleLogout} 
       />
 
-      {/* 2. CONTENIDO PRINCIPAL */}
       <main className="main-content">
         
-        {/* Header de la sección (Bicicletero selector) */}
-        <div className="card-container fade-in" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Usamos 'section-header' si existe en AdminDashboard.css, o estilizamos inline para evitar conflictos */}
+        <div style={{ 
+          background: 'white', padding: '20px', borderRadius: '12px', marginBottom: '20px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' 
+        }}>
             <div>
-                <h2 style={{ margin: 0, color: '#2c3e50' }}>
+                <h2 style={{ margin: 0, color: '#2c3e50', fontSize: '1.5rem' }}>
                     {activeTab === 'solicitudes' ? 'Gestionar Solicitudes' : 'Bicicletas en Custodia'}
                 </h2>
                 <p style={{ margin: '5px 0 0', color: '#666' }}>
@@ -169,8 +172,7 @@ const handleLogout = () => {
 
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <select 
-                    className="admin-form" 
-                    style={{ margin: 0, padding: '8px', borderRadius: '5px', borderColor: '#ddd' }}
+                    style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }}
                     value={bicicleteroActual?.id || ''} 
                     onChange={handleBicicleteroChange}
                 >
@@ -178,36 +180,34 @@ const handleLogout = () => {
                         <option key={b.id} value={b.id}>{b.ubicacion}</option>
                     ))}
                 </select>
-                <button className="btn-secondary" onClick={() => cargarDatos(bicicleteroActual.id)}>
-                    ↻
+                <button 
+                  onClick={() => cargarDatos(bicicleteroActual.id)}
+                  style={{ background: '#e0e0e0', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer' }}
+                >
+                  ↻
                 </button>
             </div>
         </div>
 
-        {/* Área de Contenido (Cards) */}
-        <div className="fade-in">
-           {/* Usamos una clase cards-grid si la definiste en GuardiaPanel.css, 
-               o style inline para asegurar el grid */}
-           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
-                {activeTab === 'solicitudes' ? (
-                    <Solicitudes 
-                        solicitudes={solicitudes} 
-                        onAprobar={abrirModalAprobar} 
-                        onRechazar={handleRechazar} 
-                    />
-                ) : (
-                    <EnCustodia 
-                        activos={activos} 
-                        onCambiarCasillero={abrirModalCambiar} 
-                        onFinalizar={handleFinalizar} 
-                    />
-                )}
-           </div>
+        {/* Aquí usamos nuestra clase cards-grid que definimos en GuardiaPanel.css (ya limpia) */}
+        <div className="cards-grid">
+            {activeTab === 'solicitudes' ? (
+                <Solicitudes 
+                    solicitudes={solicitudes} 
+                    onAprobar={abrirModalAprobar} 
+                    onRechazar={handleRechazar} 
+                />
+            ) : (
+                <EnCustodia 
+                    activos={activos} 
+                    onCambiarCasillero={abrirModalCambiar} 
+                    onFinalizar={handleFinalizar} 
+                />
+            )}
         </div>
 
       </main>
 
-      {/* 3. MODALES */}
       <CasilleroModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
