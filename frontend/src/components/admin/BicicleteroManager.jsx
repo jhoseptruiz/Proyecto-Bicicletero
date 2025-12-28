@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import Map, { Marker, NavigationControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { CrearBicicletero, ActualizarBicicletero, deleteBicicletero } from '../../services/bicicletero.service.js';
+import QRCode from 'qrcode';
 
 function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [error, setError] = useState('');
   
-  // --- Estado Mapa ---
+  // Estado Mapa 
   const [viewState, setViewState] = useState({
     longitude: -73.0134,
     latitude: -36.8222,
@@ -16,7 +17,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
   const [marcaLocalizacion, setMarcaLocalizacion] = useState({ lat: -36.8222, lng: -73.0134 });
   const MAPBOX_TOKEN = "pk.eyJ1IjoibWlsZW5ja2FhIiwiYSI6ImNtamxxZDAzYjJxNTIza3B5OXZmcmk1cXMifQ.xW3QubyrM10uSbt08RlAPA";
 
-  // --- Estado Formulario Bicicletero ---
+  // Estado Formulario Bicicletero 
   const [editarId, setEditarId] = useState('');
   const [ubicacion, setUbicacion] = useState('');
   const [capacidad, setCapacidad] = useState(15);
@@ -24,6 +25,11 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
   const [horaApertura, setHoraApertura] = useState('07:00');
   const [horaCierre, setHoraCierre] = useState('21:00');
   const [guardiaId, setguardiaId] = useState('');
+
+  // Estados qr
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrUrl, setQrUrl] = useState('');
+  const [selectedBicicletero, setSelectedBicicletero] = useState(null);
 
   const getColorEstado = (estado) => {
     switch (estado) {
@@ -133,6 +139,48 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
     if (filtroEstado === 'todos') return true;
     return b.estado === filtroEstado;
   });
+
+  const handleVerQR = async (bicicletero) => {
+    try {
+      // Creamos un objeto con los datos vitales para la validación
+      const qrData = JSON.stringify({
+        id: bicicletero.id,
+        lat: parseFloat(bicicletero.latitud),
+        lng: parseFloat(bicicletero.longitud),
+        tipo: 'bicicletero_ubicacion' // Identificador para saber qué estamos escaneando
+      });
+
+      // Generamos la imagen
+      const url = await QRCode.toDataURL(qrData, {
+        width: 300,
+        margin: 2,
+        color: { dark: '#000000', light: '#ffffff' }
+      });
+
+      setQrUrl(url);
+      setSelectedBicicletero(bicicletero);
+      setShowQrModal(true);
+    } catch (err) {
+      console.error("Error generando QR", err);
+      alert("No se pudo generar el código QR");
+    }
+  };
+
+  const handleDescargarQR = () => {
+    if (!qrUrl || !selectedBicicletero) return;
+    const link = document.createElement('a');
+    link.href = qrUrl;
+    link.download = `QR-Bicicletero-${selectedBicicletero.ubicacion.replace(/\s+/g, '-')}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const cerrarModal = () => {
+    setShowQrModal(false);
+    setQrUrl('');
+    setSelectedBicicletero(null);
+  };
 
   return (
     <div className="content-section fade-in">
@@ -261,6 +309,8 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
                   <td>{b.guardiaAsignado ? `${b.guardiaAsignado.nombre}` : '-'}</td>
                   <td>
                     <button className="btn-edit" onClick={() => handleEditClick(b)}>Editar</button>
+                    <button className="btn-primary" style={{ padding: '5px 10px', fontSize: '0.9rem', backgroundColor: '#6c757d' }} 
+                    onClick={() => handleVerQR(b)}>Ver QR</button>
                     <button className="btn-delete" onClick={() => handleDeleteBicicletero(b.id)}>Eliminar</button>
                   </td>
                 </tr>
@@ -271,6 +321,28 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
           </tbody>
         </table>
       </div>
+      {showQrModal && (
+        <div className="modal-overlay" onClick={cerrarModal}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <button className="btn-close" onClick={cerrarModal}>×</button>
+                <h3 style={{marginTop: 0, color: '#2c3e50'}}>Código QR Bicicletero</h3>
+                <p style={{ color: '#666' }}>{selectedBicicletero?.ubicacion}</p>
+                
+                <div className="qr-display-container">
+                    {qrUrl && <img src={qrUrl} alt="QR Code" className="qr-image" />}
+                </div>
+
+                <div className="modal-actions">
+                    <button className="btn-primary" onClick={handleDescargarQR}>
+                        ⬇ Descargar
+                    </button>
+                    <button className="btn-secondary" onClick={cerrarModal}>
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 }
