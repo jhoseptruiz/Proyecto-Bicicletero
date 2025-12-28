@@ -174,7 +174,6 @@ const GuardiaPanel = () => {
       try {
         if (esAprobar) {
           await aprobarIngreso(selectedItem, casilleroId);
-          setBicicleteroActual(prev => ({ ...prev, bicicletasGuardadas: prev.bicicletasGuardadas + 1 }));
         } else {
           await modificarUbicacion(selectedItem, casilleroId);
         }
@@ -217,7 +216,6 @@ const GuardiaPanel = () => {
     const ejecutarSalida = async () => {
       try {
         await finalizarEstadia(id);
-        setBicicleteroActual(prev => ({ ...prev, bicicletasGuardadas: prev.bicicletasGuardadas - 1 }));
         cargarDatos(bicicleteroActual.id, false);
       } catch (error) { alert(` Error: ${error.response?.data?.message || error.message}`); }
     };
@@ -261,7 +259,7 @@ const GuardiaPanel = () => {
                 </h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <p style={{ margin: '5px 0 0', color: '#666' }}>
-                    Ocupación: <strong>{bicicleteroActual?.bicicletasGuardadas} / {bicicleteroActual?.capacidad}</strong>
+                    Ocupación: <strong>{activos.length} / {bicicleteroActual?.capacidad}</strong>
                   </p>
                 </div>
               </div>
