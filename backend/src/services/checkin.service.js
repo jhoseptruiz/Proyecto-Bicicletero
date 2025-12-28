@@ -4,6 +4,7 @@ import { RegistroUso } from "../entities/registroUso.entity.js";
 import { User } from "../entities/user.entity.js";
 import { Bicicleta } from "../entities/bicicleta.entity.js";
 import { calcularDistancia } from "../utils/geoUtils.js";
+import { In } from "typeorm"; // <--- IMPORTANTE: Importamos 'In'
 
 // Repositorios
 const usoRepo = AppDataSource.getRepository(RegistroUso);
@@ -11,13 +12,11 @@ const bicicleteroRepo = AppDataSource.getRepository(Bicicletero);
 const userRepo = AppDataSource.getRepository(User);
 const bicicletaRepo = AppDataSource.getRepository(Bicicleta);
 
-// Helpers de Validación (Privados para limpieza, o exportados si sirven de test)
+// Helpers de Validación
 const MAX_DISTANCIA_METROS = 50;
 
 /**
  * Valida y crea una solicitud de ingreso (Estado: pendiente).
- * Revisa: Existencia user/bici, ubicación GPS, ID válido, horario y capacidad.
- * NOTA: El parámetro 'bicicleteroId' antes era 'codigoQr'. Ahora recibimos el ID numérico.
  */
 export async function crearSolicitudIngreso(rutAlumno, bicicleteroId, lat, lng, bicicletaId) {
     // 1. Validar Usuario y Bicicleta
@@ -27,35 +26,37 @@ export async function crearSolicitudIngreso(rutAlumno, bicicleteroId, lat, lng, 
     const bicicleta = await bicicletaRepo.findOne({ where: { id: bicicletaId, propietario: { rut: rutAlumno } } });
     if (!bicicleta) throw new Error("Bicicleta no encontrada o no pertenece al usuario.");
 
-    // Validar que la bici no esté ya adentro (sin fechaSalida)
+    // Validar que la bici no esté ya adentro.
+    // CORRECCIÓN: Solo bloqueamos si está en un estado "VIVO" (Pendiente, Activo, etc).
+    // Ignoramos registros 'rechazados' o 'finalizados' que por error no tengan fecha de salida.
     const usoActivo = await usoRepo.findOne({
-        where: { bicicleta: { id: bicicletaId }, fechaSalida: null },
+        where: { 
+            bicicleta: { id: bicicletaId }, 
+            fechaSalida: null,
+            estado: In(["pendiente", "activo", "solicitando_retiro"]) // <--- FILTRO AGREGADO
+        },
     });
-    if (usoActivo) throw new Error("Esta bicicleta ya figura ingresada en un bicicletero.");
-
-    // 2. Validar Bicicletero por ID (CORREGIDO)
-    // Antes buscaba por string codigoQr, ahora busca por ID primario
-    const bicicletero = await bicicleteroRepo.findOne({ where: { id: bicicleteroId } });
     
+    if (usoActivo) throw new Error("Esta bicicleta ya figura ingresada (o pendiente) en un bicicletero.");
+
+    // 2. Validar Bicicletero
+    const bicicletero = await bicicleteroRepo.findOne({ where: { id: bicicleteroId } });
     if (!bicicletero) throw new Error("Bicicletero no encontrado (ID inválido).");
 
-    // 3. Validar Ubicación Física (Geolocalización)
+    // 3. Validar Ubicación Física
     if (bicicletero.latitud && bicicletero.longitud) {
         const distancia = calcularDistancia(lat, lng, bicicletero.latitud, bicicletero.longitud);
         if (distancia > MAX_DISTANCIA_METROS) {
             throw new Error(`Estás muy lejos del bicicletero (${distancia}m). Acércate a menos de ${MAX_DISTANCIA_METROS}m.`);
         }
     } else {
-        throw new Error("El bicicletero no tiene ubicación configurada para validación.");
+        throw new Error("El bicicletero no tiene ubicación configurada.");
     }
 
-    // 4. Validar Horario de Funcionamiento
-    if (!bicicletero.horaApertura || !bicicletero.horaCierre) {
-        // Sin horario definido = Operativo 24/7 (según lógica previa)
-    } else {
+    // 4. Validar Horario
+    if (bicicletero.horaApertura && bicicletero.horaCierre) {
         const ahora = new Date();
         const [horaActual, minActual] = [ahora.getHours(), ahora.getMinutes()];
-        
         const [hApertura, mApertura] = bicicletero.horaApertura.split(':').map(Number);
         const [hCierre, mCierre] = bicicletero.horaCierre.split(':').map(Number);
 
@@ -69,8 +70,13 @@ export async function crearSolicitudIngreso(rutAlumno, bicicleteroId, lat, lng, 
     }
 
     // 5. Validar Capacidad
+    // Solo contamos las que están activamente ocupando espacio
     const ocupados = await usoRepo.count({
-        where: { bicicletero: { id: bicicletero.id }, fechaSalida: null }
+        where: { 
+            bicicletero: { id: bicicletero.id }, 
+            fechaSalida: null,
+            estado: In(["pendiente", "activo", "solicitando_retiro"])
+        }
     });
 
     if (ocupados >= bicicletero.capacidad) {
@@ -90,8 +96,7 @@ export async function crearSolicitudIngreso(rutAlumno, bicicleteroId, lat, lng, 
 }
 
 /**
- * Genera la solicitud de salida. 
- * Cambia el estado a solicitando_retiro para alertar al guardia.
+ * Genera la solicitud de salida.
  */
 export async function crearSolicitudSalida(rutAlumno, bicicleteroId, lat, lng, bicicletaId) {
     // 1. Validar Usuario y que tenga la bici adentro
@@ -99,20 +104,20 @@ export async function crearSolicitudSalida(rutAlumno, bicicleteroId, lat, lng, b
         where: {
             usuario: { rut: rutAlumno },
             bicicleta: { id: bicicletaId },
-            fechaSalida: null
+            fechaSalida: null,
+            estado: In(["pendiente", "activo", "solicitando_retiro"]) // Solo "vivas"
         },
         relations: ["bicicletero"]
     });
 
     if (!usoActivo) throw new Error("No tienes esta bicicleta estacionada actualmente.");
 
-    // 2. Validar que sea el mismo bicicletero donde está guardada (CORREGIDO)
-    // Comparamos IDs. Usamos != para permitir comparación flexible (string vs number)
+    // 2. Validar que sea el mismo bicicletero
     if (usoActivo.bicicletero.id != bicicleteroId) {
         throw new Error("Estás escaneando un bicicletero distinto al donde dejaste tu bicicleta.");
     }
 
-    // 3. Geolocalización (Debe estar ahí para sacarla)
+    // 3. Geolocalización
     if (usoActivo.bicicletero.latitud && usoActivo.bicicletero.longitud) {
         const distancia = calcularDistancia(lat, lng, usoActivo.bicicletero.latitud, usoActivo.bicicletero.longitud);
         if (distancia > MAX_DISTANCIA_METROS) {
@@ -126,7 +131,7 @@ export async function crearSolicitudSalida(rutAlumno, bicicleteroId, lat, lng, b
 }
 
 /**
- * Obtiene el estado de la solicitud activa de un usuario (si tiene alguna).
+ * Obtiene el estado de la solicitud activa.
  */
 export async function obtenerEstadoSolicitud(rutAlumno) {
     const uso = await usoRepo.findOne({
@@ -146,13 +151,9 @@ export async function obtenerEstadoSolicitud(rutAlumno) {
     };
 }
 
-// CORREGIDO: Valida buscando por ID
 export async function validarQrBicicletero(bicicleteroId) {
     const bicicletero = await bicicleteroRepo.findOne({ where: { id: bicicleteroId } });
-    
-    if (!bicicletero) {
-        throw new Error("Bicicletero no encontrado.");
-    }
+    if (!bicicletero) throw new Error("Bicicletero no encontrado.");
     
     return {
         id: bicicletero.id,
@@ -165,14 +166,17 @@ export async function validarQrBicicletero(bicicleteroId) {
 }
 
 /**
- * Verifica si el usuario ya tiene esta bici adentro para guiar el flujo en el Frontend.
+ * Verifica si el usuario ya tiene esta bici adentro.
+ * Esto define si el Frontend muestra "Ingresar" (si es false) o "Retirar" (si es true).
  */
 export async function verificarBicicletaEnBicicletero(rutAlumno, bicicletaId) {
     const uso = await usoRepo.findOne({
         where: {
             usuario: { rut: rutAlumno },
             bicicleta: { id: bicicletaId },
-            fechaSalida: null
+            fechaSalida: null,
+            // CORRECCIÓN: Si fue rechazada, cuenta como que NO está adentro, así que devuelve false (permitiendo intentar de nuevo)
+            estado: In(["pendiente", "activo", "solicitando_retiro"]) 
         }
     });
     return !!uso;
@@ -186,7 +190,11 @@ export async function obtenerEstadoBicicleteros() {
 
     const estados = await Promise.all(bicicleteros.map(async (bici) => {
         const ocupados = await usoRepo.count({
-            where: { bicicletero: { id: bici.id }, fechaSalida: null }
+            where: { 
+                bicicletero: { id: bici.id }, 
+                fechaSalida: null,
+                estado: In(["pendiente", "activo", "solicitando_retiro"])
+            }
         });
 
         let estadoMapa = "DISPONIBLE";
