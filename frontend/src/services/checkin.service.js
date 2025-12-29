@@ -12,9 +12,10 @@ export async function getCheckinStatus() {
 }
 
 // POST /api/checkin/scan
-export async function scanQr(codigoQr, lat, lng, bicicletaId) {
+// Agregamos el parámetro 'accion' (puede ser 'ingreso' o 'salida')
+export async function scanQr(codigoQr, lat, lng, bicicletaId, accion) {
     try {
-        const payload = { codigoQr, lat, lng, bicicletaId };
+        const payload = { codigoQr, lat, lng, bicicletaId, accion }; // <--- Enviamos accion
         const response = await apiClient.post('/checkin/scan', payload);
         return response.data;
     } catch (error) {
