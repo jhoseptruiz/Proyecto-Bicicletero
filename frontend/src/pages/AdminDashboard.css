@@ -225,6 +225,12 @@
     min-width: 250px;
 }
 
+.map-card-container {
+    height: calc(100vh - 180px);
+    padding: 0 !important;
+    overflow: hidden;
+}
+
 .map-wrapper {
     height: 450px;
     border-radius: 8px;
@@ -350,6 +356,35 @@
         flex-direction: column;
     }
 
+    /* REORDENAMIENTO: Estado arriba, Mapa abajo */
+    .bicicleteros-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        /* Reduce gap */
+    }
+
+    .form-column {
+        order: -1;
+        /* Pone el estado primero */
+        margin-bottom: 0px;
+    }
+
+    .form-column .card-container {
+        margin-bottom: 5px !important;
+    }
+
+    .map-column {
+        margin-bottom: 20px;
+    }
+
+    /* MAPA CORTO EN MÓVIL (para que quepa todo) */
+    .map-card-container {
+        height: 45vh !important;
+        /* Más corto */
+        min-height: 250px;
+    }
+
     /* --- WRAPPER UNIFICADO MÓVIL (Group Centering) --- */
     .mobile-nav-wrapper {
         position: fixed;
@@ -397,6 +432,22 @@
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
         border-right: none;
         pointer-events: auto;
+
+        /* Animación de entrada suave (SOLO TRANSFORM, SIN WIDTH) */
+        animation: slideInUpSimple 0.4s ease-out forwards;
+    }
+
+    /* Animación exclusiva para la barra grande (no afecta ancho) */
+    @keyframes slideInUpSimple {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     /* Limpieza de estructuras internas */
@@ -434,6 +485,11 @@
         /* ESTILO: Burbujas redondas al activarse */
         border-radius: 50px !important;
         transition: all 0.2s ease;
+    }
+
+    /* PERFIL AL FINAL (DERECHA) */
+    .sidebar .menu-item.profile-menu-item {
+        order: 999;
     }
 
     /* Highlight active tab background - Estilo Burbuja Visible */
@@ -474,11 +530,55 @@
         pointer-events: auto;
     }
 
+    /* ANIMACIÓN SLIDE-IN UP + EXPAND (Refinada suave) */
+    @keyframes slideInUp {
+        0% {
+            opacity: 0;
+            transform: translateY(20px);
+            /* Menor distancia para menos "travel" */
+            min-width: 0;
+            width: 0;
+            padding: 0;
+            margin: 0;
+        }
+
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+            min-width: 60px;
+            width: 60px;
+            padding: 0 2px;
+            margin: 0;
+        }
+    }
+
+    /* ANIMACIÓN SLIDE-OUT LEFT (Hacia izquierda) */
+    @keyframes slideOutLeft {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        to {
+            opacity: 0;
+            transform: translateX(-50px);
+        }
+    }
+
+    /* Clases de animación controlada */
+    .animate-enter {
+        animation: slideInUp 0.4s ease-out forwards;
+    }
+
+    .animate-exit {
+        animation: slideOutLeft 0.3s ease-in forwards;
+    }
+
     /* Estilos del Botón FAB */
     .mobile-logout-fab,
     #mobile-action-slot .fab-button {
         position: static;
-        transform: none !important;
+        /* Remover transform: none !important para permitir animación */
         margin: 0 !important;
 
         /* ANCHO/ALTO COMPACTO */
@@ -488,7 +588,8 @@
 
         height: 55px;
         border-radius: 50px;
-        padding: 0 2px;
+        padding: 0;
+        /* REMOVER PADDING LATERAL */
 
         display: flex;
         flex-direction: column;
@@ -500,8 +601,32 @@
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
         cursor: pointer;
 
+        /* Optimización de gpu */
+        will-change: transform, width, opacity;
+
         font-size: 1rem;
         text-align: center;
+
+        /* Estado inicial */
+        opacity: 0;
+        transform: translateY(20px);
+        min-width: 0;
+        /* Permitir inicio en 0 */
+        width: 0;
+
+        /* Aplicar animación de entrada AUTOMÁTICA */
+        animation: slideInUp 0.4s ease-out forwards;
+        overflow: hidden;
+        /* Ocultar contenido mientras expande */
+    }
+
+    /* Pequeño retardo escalonado para efecto visual agradable */
+    .mobile-logout-fab {
+        animation-delay: 0.1s;
+    }
+
+    #mobile-action-slot .fab-button {
+        animation-delay: 0.2s;
     }
 
     /* Font adjustments */
@@ -627,7 +752,10 @@
 /* ESTILOS DEL MODAL QR */
 .modal-overlay {
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background-color: rgba(0, 0, 0, 0.6);
     display: flex;
     justify-content: center;
@@ -665,15 +793,31 @@
 }
 
 .modal-actions {
-    display: flex; gap: 10px; justify-content: center; margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
 }
 
 .btn-close {
-    position: absolute; top: 15px; right: 15px;
-    background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #666;
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: #666;
 }
 
 @keyframes modalSlideIn {
-    from { transform: translateY(-20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }

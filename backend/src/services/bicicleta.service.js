@@ -36,11 +36,11 @@ export async function findMisBicicletas(usuarioRut) {
   return bicis.map(b => {
     // --- CORRECCIÓN AQUÍ ---
     // Antes: const usoActivo = b.usos?.find(u => u.fechaSalida === null);
-    
+
     // Ahora: Solo consideramos que está "Adentro" si el estado es 'pendiente', 'activo' o 'solicitando_retiro'.
     // Si está 'rechazado', lo ignoramos (aunque fechaSalida sea null), para que puedas volver a intentar.
-    const usoActivo = b.usos?.find(u => 
-      u.fechaSalida === null && 
+    const usoActivo = b.usos?.find(u =>
+      u.fechaSalida === null &&
       ["pendiente", "activo", "solicitando_retiro"].includes(u.estado)
     );
 
@@ -59,7 +59,10 @@ export async function findMisBicicletas(usuarioRut) {
 }
 
 export async function actualizarBicicleta(id, usuarioRut, updateData) {
-  const bicicleta = await bicicletaRepo.findOne({ where: { id }, relations: ['propietario'] });
+  const bicicleta = await bicicletaRepo.findOne({
+    where: { id },
+    relations: ['propietario', 'usos']
+  });
 
   if (!bicicleta) {
     throw new Error("Bicicleta no encontrada.");
@@ -69,7 +72,15 @@ export async function actualizarBicicleta(id, usuarioRut, updateData) {
     throw new Error("No estás autorizado para modificar esta bicicleta.");
   }
 
-  // Futuro: Cuando la entidad 'RegistroUso' exista, se debe añadir aquí la verificación.
+  // Verificar si está en uso activo
+  const usoActivo = bicicleta.usos?.find(u =>
+    u.fechaSalida === null &&
+    ["pendiente", "activo", "solicitando_retiro"].includes(u.estado)
+  );
+
+  if (usoActivo) {
+    throw new Error("No puedes editar una bicicleta que está actualmente en uso o ingreso pendiente.");
+  }
 
   if (updateData.fotoUrl && bicicleta.fotoUrl) {
     const oldPhotoPath = path.resolve(bicicleta.fotoUrl);
@@ -85,7 +96,10 @@ export async function actualizarBicicleta(id, usuarioRut, updateData) {
 }
 
 export async function eliminarBicicleta(id, usuarioRut) {
-  const bicicleta = await bicicletaRepo.findOne({ where: { id }, relations: ['propietario'] });
+  const bicicleta = await bicicletaRepo.findOne({
+    where: { id },
+    relations: ['propietario', 'usos']
+  });
 
   if (!bicicleta) {
     throw new Error("Bicicleta no encontrada.");
@@ -95,7 +109,15 @@ export async function eliminarBicicleta(id, usuarioRut) {
     throw new Error("No estás autorizado para eliminar esta bicicleta.");
   }
 
-  // Futuro: Cuando la entidad 'RegistroUso' exista, se debe añadir aquí la verificación.
+  // Verificar si está en uso activo
+  const usoActivo = bicicleta.usos?.find(u =>
+    u.fechaSalida === null &&
+    ["pendiente", "activo", "solicitando_retiro"].includes(u.estado)
+  );
+
+  if (usoActivo) {
+    throw new Error("No puedes eliminar una bicicleta que está actualmente en uso o ingreso pendiente.");
+  }
 
   if (bicicleta.fotoUrl) {
     const photoPath = path.resolve(bicicleta.fotoUrl);

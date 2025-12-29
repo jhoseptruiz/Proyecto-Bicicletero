@@ -14,7 +14,7 @@ function GestionBicicletas() {
   const [fotoFile, setFotoFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [formError, setFormError] = useState('');
-  
+
   // Estados para el modal de edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingBike, setEditingBike] = useState(null);
@@ -63,13 +63,13 @@ function GestionBicicletas() {
       setMarca('');
       setFotoFile(null);
       setPreviewUrl('');
-      if(document.getElementById('fotoInput')) document.getElementById('fotoInput').value = null;
-      fetchData(); 
+      if (document.getElementById('fotoInput')) document.getElementById('fotoInput').value = null;
+      fetchData();
     } catch (err) {
       setFormError(err.message);
     }
   };
-  
+
   // --- Lógica de Eliminación ---
   const handleDelete = async (bicicletaId) => {
     if (window.confirm("¿Estás seguro de que quieres eliminar esta bicicleta? Esta acción no se puede deshacer.")) {
@@ -81,7 +81,7 @@ function GestionBicicletas() {
       }
     }
   };
-  
+
   // --- Lógica de Edición ---
   const openEditModal = (bicicleta) => {
     setEditingBike(bicicleta);
@@ -89,7 +89,7 @@ function GestionBicicletas() {
     setEditPreviewUrl(`${API_BASE_URL}/${bicicleta.fotoUrl}`);
     setIsEditModalOpen(true);
   };
-  
+
   const closeEditModal = () => {
     setIsEditModalOpen(false);
     setEditingBike(null);
@@ -105,7 +105,7 @@ function GestionBicicletas() {
       setEditPreviewUrl(URL.createObjectURL(file));
     }
   };
-  
+
   const handleUpdate = async (e) => {
     e.preventDefault();
     const formData = new FormData();
@@ -113,7 +113,7 @@ function GestionBicicletas() {
     if (editFotoFile) {
       formData.append('foto', editFotoFile);
     }
-    
+
     try {
       await updateBicicleta(editingBike.id, formData);
       closeEditModal();
@@ -131,46 +131,91 @@ function GestionBicicletas() {
       <h2>Administrar Bicicletas</h2>
       <p>Administra las bicicletas de tu perfil.</p>
       <hr style={{ margin: '20px 0' }} />
-      <h3>Registrar Nueva Bicicleta</h3>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '10px' }}>
-          <label>Marca:</label>
-          <input type="text" value={marca} onChange={(e) => setMarca(e.target.value)} required />
+      <div className="add-bike-section">
+        <h3>Registrar Nueva Bicicleta</h3>
+        <form onSubmit={handleSubmit} className="add-bike-form">
+          <div className="form-group">
+            <label>Marca / Modelo:</label>
+            <input type="text" value={marca} onChange={(e) => setMarca(e.target.value)} required placeholder="Ej: Trek Marlin 5" />
+          </div>
+          <div className="form-group">
+            <label>Foto:</label>
+            <div className="file-input-wrapper">
+              <input id="fotoInput" type="file" accept="image/*" onChange={handleFileChange} required />
+              <button type="button" className="btn-upload" onClick={() => document.getElementById('fotoInput').click()}>
+                {fotoFile ? 'Foto Seleccionada ✅' : '📸 Subir Foto'}
+              </button>
+            </div>
+          </div>
+
+          {previewUrl && (
+            <div className="preview-container">
+              <img src={previewUrl} alt="Vista previa" className="preview-image" />
+            </div>
+          )}
+
+          <button type="submit" className="btn-primary-add">Agregar Bicicleta</button>
+          {formError && <p className="error-msg">{formError}</p>}
+        </form>
+      </div>
+
+      <hr style={{ margin: '20px 0', border: '0', borderTop: '1px solid #eee' }} />
+
+      <h3>Mis Bicicletas</h3>
+
+      {bicicletas.length === 0 ? (
+        <div className="empty-state">
+          <p>No tienes bicicletas registradas aún.</p>
         </div>
-        <div style={{ marginBottom: '10px' }}>
-          <label>Foto de la Bicicleta:</label>
-          <input id="fotoInput" type="file" accept="image/*" onChange={handleFileChange} required />
+      ) : (
+        <div className="bikes-grid">
+          {bicicletas.map(b => {
+            const enUso = b.estadoActual?.estaAdentro;
+            return (
+              <div key={b.id} className="bike-card">
+                <div className="bike-card-image">
+                  {b.fotoUrl ? (
+                    <img src={`${API_BASE_URL}/${b.fotoUrl}`} alt={b.marca} />
+                  ) : (
+                    <div className="placeholder-image">🚲</div>
+                  )}
+                  {enUso && (
+                    <div style={{
+                      position: 'absolute', top: '8px', right: '8px',
+                      background: '#ffc107', padding: '4px 8px', borderRadius: '4px',
+                      fontSize: '0.75rem', fontWeight: 'bold', color: '#333'
+                    }}>
+                      En Uso
+                    </div>
+                  )}
+                </div>
+                <div className="bike-card-content">
+                  <h4>{b.marca}</h4>
+                  <div className="bike-card-actions">
+                    <button
+                      className="btn-icon edit"
+                      onClick={() => !enUso && openEditModal(b)}
+                      disabled={enUso}
+                      title={enUso ? "No puedes editar una bicicleta en uso" : "Editar"}
+                      style={{ opacity: enUso ? 0.4 : 1, cursor: enUso ? 'not-allowed' : 'pointer' }}
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      className="btn-icon delete"
+                      onClick={() => !enUso && handleDelete(b.id)}
+                      disabled={enUso}
+                      title={enUso ? "No puedes eliminar una bicicleta en uso" : "Eliminar"}
+                      style={{ opacity: enUso ? 0.4 : 1, cursor: enUso ? 'not-allowed' : 'pointer' }}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-        {previewUrl && <img src={previewUrl} alt="Vista previa" style={{ width: '150px', height: '150px', objectFit: 'cover', marginBottom: '10px' }} />}
-        <button type="submit">Agregar Bicicleta</button>
-        {formError && <p style={{ color: 'red' }}>{formError}</p>}
-      </form>
-      <hr style={{ margin: '20px 0' }} />
-      <h3>Bicicletas Registradas</h3>
-      {bicicletas.length === 0 ? <p>No tienes bicicletas registradas.</p> : (
-        <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={{ padding: '8px', width: '100px' }}>Foto</th>
-              <th style={{ padding: '8px' }}>Marca</th>
-              <th style={{ padding: '8px' }}>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {bicicletas.map(b => (
-              <tr key={b.id}>
-                <td style={{ padding: '8px', textAlign: 'center' }}>
-                  {b.fotoUrl && <img src={`${API_BASE_URL}/${b.fotoUrl}`} alt={b.marca} style={{ width: '80px', height: '80px', objectFit: 'cover' }} />}
-                </td>
-                <td style={{ padding: '8px' }}>{b.marca}</td>
-                <td style={{ padding: '8px', textAlign: 'center' }}>
-                  <button onClick={() => openEditModal(b)}>Editar</button>
-                  <button onClick={() => handleDelete(b.id)} style={{ marginLeft: '5px' }}>Eliminar</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       )}
 
       {isEditModalOpen && (

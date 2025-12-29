@@ -188,10 +188,20 @@ export async function obtenerEstadoSolicitud(rutAlumno) {
 
     if (!uso) return null;
 
+    const hA = uso.bicicletero.horaApertura;
+    const hC = uso.bicicletero.horaCierre;
+    const horarioStr = (hA && hC)
+        ? `${hA.slice(0, 5)} - ${hC.slice(0, 5)}`
+        : "Horario no definido";
+
     return {
         id: uso.id,
         estado: uso.estado,
         bicicletero: uso.bicicletero.ubicacion,
+        horario: horarioStr,
+        // Enviar horas crudas para validación frontend
+        horaApertura: hA,
+        horaCierre: hC,
         casillero: uso.casillero,
         horaIngreso: uso.fechaIngreso,
         bicicleta: {

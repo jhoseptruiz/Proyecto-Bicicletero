@@ -57,6 +57,26 @@ function StatusCheckin({ onScan }) {
         ? `http://localhost:3000${bicicleta.foto}`
         : 'https://via.placeholder.com/150?text=Bici';
 
+    // Validar si está en horario
+    const isWithinHours = () => {
+        if (!status.horaApertura || !status.horaCierre) return true; // Si no hay horario definido, permitimos (fallback)
+
+        const now = new Date();
+        const currentHours = now.getHours();
+        const currentMinutes = now.getMinutes();
+        const currentTime = currentHours * 60 + currentMinutes;
+
+        const [hA, mA] = status.horaApertura.split(':').map(Number);
+        const [hC, mC] = status.horaCierre.split(':').map(Number);
+
+        const openTime = hA * 60 + mA;
+        const closeTime = hC * 60 + mC;
+
+        return currentTime >= openTime && currentTime <= closeTime;
+    };
+
+    const canWithdraw = isWithinHours();
+
     return (
         <div className="status-card-compact" style={{
             background: 'white',
@@ -72,9 +92,6 @@ function StatusCheckin({ onScan }) {
                 <span className={`badge ${['activo', 'ingresado', 'INGRESADO'].includes(status.estado) ? 'operativo' : 'mantenimiento'}`}
                     style={{ fontSize: '0.85rem', padding: '4px 8px' }}>
                     {status.estado.replace('_', ' ').toUpperCase()}
-                </span>
-                <span style={{ fontSize: '0.85rem', color: '#666', fontWeight: '500' }}>
-                    📍 {status.bicicletero || 'Desconocido'}
                 </span>
             </div>
 
@@ -99,9 +116,14 @@ function StatusCheckin({ onScan }) {
                             Casillero: #{status.casillero}
                         </div>
                     )}
-                    <div style={{ color: '#888', fileSize: '0.8rem', marginTop: '2px' }}>
-                        🕒 {new Date(status.horaIngreso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <div style={{ color: '#555', fontSize: '0.9rem', marginTop: '2px', fontWeight: '500' }}>
+                        📍 {status.bicicletero || 'Desconocido'}
                     </div>
+                    {status.horario && (
+                        <div style={{ color: '#666', fontSize: '0.8rem', marginTop: '2px' }}>
+                            Horario de Atención: {status.horario}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -109,20 +131,34 @@ function StatusCheckin({ onScan }) {
             <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
                 {(status.estado === 'pendiente' || status.estado === 'solicitando_retiro') && (
                     <button onClick={handleCancelar} className="btn-action-cancel" style={{ flex: 1, background: '#fee2e2', color: '#b91c1c', border: 'none', padding: '8px', borderRadius: '6px', fontWeight: '600' }}>
-                        ❌ Cancelar
+                        Cancelar
                     </button>
                 )}
 
                 {['activo', 'ingresado', 'INGRESADO'].includes(status.estado) && (
-                    <button onClick={() => onScan({ action: 'retirar' })} className="btn-action-withdraw" style={{ flex: 1, background: '#fef3c7', color: '#b45309', border: 'none', padding: '8px', borderRadius: '6px', fontWeight: '600' }}>
-                        📤 Retirar
+                    <button
+                        onClick={() => canWithdraw && onScan({ action: 'retirar' })}
+                        className="btn-action-withdraw"
+                        disabled={!canWithdraw}
+                        style={{
+                            flex: 1,
+                            background: canWithdraw ? '#fef3c7' : '#eee',
+                            color: canWithdraw ? '#b45309' : '#999',
+                            border: 'none',
+                            padding: '8px',
+                            borderRadius: '6px',
+                            fontWeight: '600',
+                            cursor: canWithdraw ? 'pointer' : 'not-allowed'
+                        }}
+                    >
+                        {canWithdraw ? 'Retirar' : 'Fuera de Horario'}
                     </button>
                 )}
             </div>
 
             {status.estado === 'pendiente' && (
                 <div style={{ fontSize: '0.75rem', color: '#666', textAlign: 'center', background: '#f8f9fa', padding: '4px', borderRadius: '4px' }}>
-                    ⏳ Esperando aprobación del guardia...
+                    Esperando aprobación del guardia...
                 </div>
             )}
         </div>

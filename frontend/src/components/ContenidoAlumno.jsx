@@ -81,10 +81,12 @@ function ContenidoAlumno({ alIrAlPerfil }) {
         );
     }
 
+    const shouldShowScanner = status && ['SIN_SOLICITUD', 'INGRESADO', 'activo', 'ingresado'].includes(status.estado);
+
     return (
         <div className="bicicleteros-layout fade-in">
             <div className="map-column">
-                <div className="card-container" style={{ height: 'calc(100vh - 180px)', padding: 0, overflow: 'hidden' }}>
+                <div className="card-container map-card-container">
                     <MapaAlumno onMarkerClick={(bici) => handleOpenScan({ preSelectedBicicletero: bici })} />
                 </div>
             </div>
@@ -96,19 +98,17 @@ function ContenidoAlumno({ alIrAlPerfil }) {
                 </div>
             </div>
 
-            {portalContainer && status &&
-                (status.estado === 'SIN_SOLICITUD' || status.estado === 'INGRESADO' || status.estado === 'activo' || status.estado === 'ingresado') && (
-                    ReactDOM.createPortal(
-                        <button
-                            className="fab-button pop-in"
-                            onClick={() => handleOpenScan()}
-                            style={{ animation: 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards' }}
-                        >
-                            Escanear
-                        </button>,
-                        portalContainer
-                    )
-                )}
+            {portalContainer && shouldShowScanner && (
+                ReactDOM.createPortal(
+                    <button
+                        className="fab-button"
+                        onClick={() => handleOpenScan()}
+                    >
+                        Escanear
+                    </button>,
+                    portalContainer
+                )
+            )}
         </div>
     );
 }

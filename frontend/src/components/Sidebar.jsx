@@ -35,6 +35,7 @@ function Sidebar({ role, activeTab, setActiveTab, onLogout }) {
 
     const isStudentMode = role === 'alumno' || activeTab === 'ir_a_alumno';
     const isProfileMode = activeTab === 'perfil';
+
     return (
         <div className="mobile-nav-wrapper">
 
@@ -43,7 +44,7 @@ function Sidebar({ role, activeTab, setActiveTab, onLogout }) {
                     <h2>{config.title}</h2>
                     <button
                         onClick={() => setActiveTab('perfil')}
-                        className={`menu-item ${activeTab === 'perfil' ? 'active' : ''}`}
+                        className={`menu-item profile-menu-item ${activeTab === 'perfil' ? 'active' : ''}`}
                         title="Mi Perfil"
                     >
                         <span className="menu-icon">👤</span>
@@ -71,6 +72,7 @@ function Sidebar({ role, activeTab, setActiveTab, onLogout }) {
                 </div>
             </aside>
             <div id="mobile-action-slot"></div>
+
             {isProfileMode && (
                 <button className="mobile-logout-fab" onClick={onLogout}>
                     Salir
