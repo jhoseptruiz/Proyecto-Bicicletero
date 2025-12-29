@@ -2,12 +2,12 @@
 
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { findUserByEmail } from "./user.service.js"; 
+import { findUserByEmail } from "./user.service.js";
 import { JWT_SECRET } from "../config/configEnv.js";
 
 // --- Servicio de Login (Core) ---
 export async function loginUser(email, password) {
-  
+
   // 1. Buscar usuario
   const user = await findUserByEmail(email);
   if (!user) {
@@ -21,8 +21,9 @@ export async function loginUser(email, password) {
   }
 
   // 3. Crear Payload para JWT
-  const payload = { 
-    sub: user.rut, 
+  const payload = {
+    sub: user.rut,
+    rut: user.rut,
     email: user.email,
     role: user.role
   };
@@ -31,6 +32,6 @@ export async function loginUser(email, password) {
   const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
 
   delete user.password;
-  
+
   return { user, token };
 }

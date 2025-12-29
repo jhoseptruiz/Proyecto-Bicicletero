@@ -51,3 +51,12 @@ export async function obtenerEstadoBicicletero(id) {
         throw error.response?.data || { message: "Error al obtener detalles" };
     }
 }
+// POST /api/checkin/cancel
+export async function cancelCheckin() {
+    try {
+        const response = await apiClient.post('/checkin/cancel');
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { message: "Error al cancelar" };
+    }
+}

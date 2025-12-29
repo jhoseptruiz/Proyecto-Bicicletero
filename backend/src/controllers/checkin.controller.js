@@ -6,7 +6,8 @@ import {
     verificarBicicletaEnBicicletero,
 
     validarQrBicicletero,
-    obtenerDetalleBicicletero
+    obtenerDetalleBicicletero,
+    cancelarSolicitud
 } from "../services/checkin.service.js";
 import { handleSuccess, handleErrorClient, handleErrorServer } from "../Handlers/responseHandlers.js";
 
@@ -30,7 +31,6 @@ export async function validateQr(req, res) {
  */
 export async function scanBicicletero(req, res) {
     try {
-        // Recibimos 'codigoQr', pero ahora sabemos que contiene el ID (ej: 15)
         const { codigoQr, lat, lng, bicicletaId } = req.body;
         const rutAlumno = req.user.rut;
 
@@ -39,7 +39,7 @@ export async function scanBicicletero(req, res) {
             return handleErrorClient(res, 400, "Faltan datos obligatorios");
         }
 
-        // Tratamos el codigoQr como un ID
+        // Tratamos el codigoQr como un ID de bicicletero
         const bicicleteroId = codigoQr;
 
         const yaEstaAdentro = await verificarBicicletaEnBicicletero(rutAlumno, bicicletaId);
@@ -101,5 +101,18 @@ export async function getBicicleteroDetail(req, res) {
         handleSuccess(res, 200, "Detalle obtenido", data);
     } catch (error) {
         handleErrorClient(res, 404, error.message);
+    }
+}
+
+/**
+ * Cancela solicitud (ingreso/retiro).
+ */
+export async function cancelRequest(req, res) {
+    try {
+        const rutAlumno = req.user.rut;
+        const resultado = await cancelarSolicitud(rutAlumno);
+        handleSuccess(res, 200, resultado.message, resultado);
+    } catch (error) {
+        handleErrorClient(res, 400, error.message);
     }
 }

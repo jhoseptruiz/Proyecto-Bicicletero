@@ -23,7 +23,42 @@ function ContenidoAlumno({ alIrAlPerfil }) {
         }
     }, []);
 
-    const handleOpenScan = (props = {}) => {
+    const [status, setStatus] = useState(null);
+
+    // Fetch status check for validations
+    const verificarEstado = async () => {
+        try {
+            const { getCheckinStatus } = await import('../services/checkin.service');
+            const resp = await getCheckinStatus();
+            setStatus(resp.data); // { estado: 'pendiente', ... }
+        } catch (e) {
+            console.error("Error validando estado para scanner:", e);
+        }
+    };
+
+    useEffect(() => {
+        verificarEstado();
+        // Polling para mantener sincronizado el boton
+        const interval = setInterval(verificarEstado, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleOpenScan = async (props = {}) => {
+        // Validación Preventiva (Frontend)
+        if (status) {
+            if (status.estado === 'pendiente') {
+                alert("⚠️ Ya tienes una solicitud pendiente. Espera a que el guardia la apruebe.");
+                return;
+            }
+            if (status.estado === 'solicitando_retiro') {
+                alert("⚠️ Ya has solicitado el retiro. Dirígete a la salida.");
+                return;
+            }
+        }
+
+        // Refrescar estado antes de abrir
+        await verificarEstado();
+
         setScanProps(props);
         setView('scan');
     };
@@ -57,18 +92,23 @@ function ContenidoAlumno({ alIrAlPerfil }) {
             <div className="form-column">
                 <div className="admin-form card-container">
                     <h3>Estado Actual</h3>
-                    <EstadoCheckin />
+                    <EstadoCheckin onScan={handleOpenScan} />
                 </div>
             </div>
 
-            {portalContainer &&
-                ReactDOM.createPortal(
-                    <button className="fab-button" onClick={() => handleOpenScan()}>
-                        Escanear
-                    </button>,
-                    portalContainer
-                )
-            }
+            {portalContainer && status &&
+                (status.estado === 'SIN_SOLICITUD' || status.estado === 'INGRESADO' || status.estado === 'activo' || status.estado === 'ingresado') && (
+                    ReactDOM.createPortal(
+                        <button
+                            className="fab-button pop-in"
+                            onClick={() => handleOpenScan()}
+                            style={{ animation: 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards' }}
+                        >
+                            Escanear
+                        </button>,
+                        portalContainer
+                    )
+                )}
         </div>
     );
 }
