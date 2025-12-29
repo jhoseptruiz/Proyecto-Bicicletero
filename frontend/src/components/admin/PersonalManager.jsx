@@ -3,7 +3,9 @@ import { createPersonal, updatePersonal, deletePersonal } from '../../services/u
 
 function PersonalManager({ personalList, onRefresh }) {
     const [filtroRol, setFiltroRol] = useState('todos');
-    const [error, setError] = useState('');
+    
+    // --- ESTADO PARA MODAL DE ERROR ---
+    const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -16,6 +18,15 @@ function PersonalManager({ personalList, onRefresh }) {
     const [pPassword, setpPassword] = useState('');
     const [pRole, setpRole] = useState('guardia');
 
+    // --- Helper Pop Up Error ---
+    const showError = (msg) => {
+        setErrorModal({ isOpen: true, message: msg });
+    };
+
+    const closeError = () => {
+        setErrorModal({ isOpen: false, message: '' });
+    };
+
     // --- Lógica Personal ---
     const resetFormularioPersonal = () => {
         setEditarPersonalRut(null);
@@ -25,10 +36,15 @@ function PersonalManager({ personalList, onRefresh }) {
         setpGmail('');
         setpPassword('');
         setpRole('guardia');
-        setError('');
     };
 
     const handleEditPersonalClick = (usuario) => {
+        // Validación Frontend (Bloqueo lógico)
+        if (usuario.BicicleterosAsignados && usuario.BicicleterosAsignados.length > 0) {
+            showError("No se puede modificar un guardia que tiene bicicleteros asignados.");
+            return;
+        }
+
         setEditarPersonalRut(usuario.rut);
         setpRut(usuario.rut);
         setpNombre(usuario.nombre);
@@ -43,14 +59,13 @@ function PersonalManager({ personalList, onRefresh }) {
         const currentUser = JSON.parse(localStorage.getItem('user'));
 
         if (editarPersonalRut === currentUser.rut && pRole !== 'admin') {
-            setError("No puedes quitarte el rol de administrador a ti mismo.");
+            showError("No puedes quitarte el rol de administrador a ti mismo.");
             return;
         }
 
         setIsSubmitting(true);
 
         try {
-            setError('');
             const personalData = {
                 rut: pRut,
                 nombre: pNombre,
@@ -70,28 +85,34 @@ function PersonalManager({ personalList, onRefresh }) {
             }
 
             resetFormularioPersonal();
-            onRefresh(); // Recargar datos en el padre
+            onRefresh(); 
         } catch (err) {
-            setError(err.message);
+            showError(err.message || "Error al procesar solicitud");
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleDeletePersonal = async (rut) => {
+    const handleDeletePersonal = async (usuario) => {
+        // Validación Frontend (Bloqueo lógico)
+        if (usuario.BicicleterosAsignados && usuario.BicicleterosAsignados.length > 0) {
+            showError("No se puede eliminar un guardia que tiene bicicleteros asignados.");
+            return;
+        }
+
         const currentUser = JSON.parse(localStorage.getItem('user'));
-        if (rut === currentUser.rut) {
-            alert("No puedes eliminar tu propio usuario.");
+        if (usuario.rut === currentUser.rut) {
+            showError("No puedes eliminar tu propio usuario.");
             return;
         }
 
         if (!window.confirm("¿Estás seguro de eliminar este usuario?")) return;
         try {
-            await deletePersonal(rut);
+            await deletePersonal(usuario.rut);
             alert('Usuario eliminado');
-            onRefresh(); // Recargar datos en el padre
+            onRefresh(); 
         } catch (err) {
-            setError(err.message);
+            showError(err.message || "Error al eliminar");
         }
     };
 
@@ -105,8 +126,6 @@ function PersonalManager({ personalList, onRefresh }) {
             <div className="section-header">
                 <h2>Gestión de Personal</h2>
             </div>
-
-            {error && <div style={{ color: 'red', marginBottom: '10px' }}>Error: {error}</div>}
 
             <div className="card-container">
                 <form onSubmit={handlePersonalSubmit} className="admin-form grid-2-col">
@@ -153,7 +172,7 @@ function PersonalManager({ personalList, onRefresh }) {
                         <button
                             type="submit"
                             className="btn-primary"
-                            disabled={isSubmitting} // Deshabilitar si está cargando
+                            disabled={isSubmitting} 
                         >
                             {isSubmitting ? 'Guardando...' : (editarPersonalRut ? 'Actualizar Personal' : 'Crear Personal')}
                         </button>
@@ -162,7 +181,7 @@ function PersonalManager({ personalList, onRefresh }) {
                             type="button"
                             onClick={resetFormularioPersonal}
                             className="btn-secondary"
-                            disabled={isSubmitting} // Deshabilitar cancelar también
+                            disabled={isSubmitting}
                         >
                             Cancelar
                         </button>
@@ -195,33 +214,82 @@ function PersonalManager({ personalList, onRefresh }) {
                     </thead>
                     <tbody>
                         {personalFiltrado.length > 0 ? (
-                            personalFiltrado.map(p => (
-                                <tr key={p.rut}>
-                                    <td>{p.rut}</td>
-                                    <td>{p.nombre}</td>
-                                    <td>{p.apellido}</td>
-                                    <td>{p.email}</td>
-                                    <td>
-                                        <span style={{
-                                            padding: '4px 8px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 'bold',
-                                            backgroundColor: p.role === 'admin' ? '#e3f2fd' : '#fff3e0',
-                                            color: p.role === 'admin' ? '#1565c0' : '#e65100'
-                                        }}>
-                                            {p.role === 'admin' ? 'Administrador' : 'Guardia'}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <button className="btn-edit" onClick={() => handleEditPersonalClick(p)}>Editar</button>
-                                        <button className="btn-delete" onClick={() => handleDeletePersonal(p.rut)}>Eliminar</button>
-                                    </td>
-                                </tr>
-                            ))
+                            personalFiltrado.map(p => {
+                                // VERIFICAR SI TIENE ASIGNACIONES
+                                const tieneAsignacion = p.BicicleterosAsignados && p.BicicleterosAsignados.length > 0;
+                                
+                                return (
+                                    <tr key={p.rut}>
+                                        <td>{p.rut}</td>
+                                        <td>{p.nombre}</td>
+                                        <td>{p.apellido}</td>
+                                        <td>{p.email}</td>
+                                        <td>
+                                            <span style={{
+                                                padding: '4px 8px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 'bold',
+                                                backgroundColor: p.role === 'admin' ? '#e3f2fd' : '#fff3e0',
+                                                color: p.role === 'admin' ? '#1565c0' : '#e65100'
+                                            }}>
+                                                {p.role === 'admin' ? 'Administrador' : 'Guardia'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button 
+                                                className="btn-edit" 
+                                                onClick={() => handleEditPersonalClick(p)}
+                                                disabled={tieneAsignacion}
+                                                style={tieneAsignacion ? { opacity: 0.5, cursor: 'not-allowed', backgroundColor: '#ccc' } : {}}
+                                                title={tieneAsignacion ? "Tiene bicicleteros asignados" : "Editar"}
+                                            >
+                                                Editar
+                                            </button>
+                                            
+                                            <button 
+                                                className="btn-delete" 
+                                                onClick={() => handleDeletePersonal(p)}
+                                                disabled={tieneAsignacion}
+                                                style={tieneAsignacion ? { marginLeft: '5px', opacity: 0.5, cursor: 'not-allowed', backgroundColor: '#ccc' } : { marginLeft: '5px' }}
+                                                title={tieneAsignacion ? "Tiene bicicleteros asignados" : "Eliminar"}
+                                            >
+                                                Eliminar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         ) : (
                             <tr><td colSpan="5">No hay usuarios registrados</td></tr>
                         )}
                     </tbody>
                 </table>
             </div>
+
+            {/* --- MODAL DE ERROR (POP UP) --- */}
+            {errorModal.isOpen && (
+                <div className="modal-overlay" onClick={closeError}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', borderTop: '5px solid #e74c3c' }}>
+                        <button className="btn-close" onClick={closeError}>×</button>
+                        
+                        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                            <div style={{ fontSize: '50px', marginBottom: '15px' }}>⚠️</div>
+                            <h3 style={{ color: '#e74c3c', margin: '0 0 10px 0' }}>Acción Denegada</h3>
+                            <p style={{ fontSize: '1.1rem', color: '#555', lineHeight: '1.5' }}>
+                                {errorModal.message}
+                            </p>
+                        </div>
+
+                        <div className="modal-actions">
+                            <button 
+                                className="btn-secondary" 
+                                onClick={closeError}
+                                style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none' }}
+                            >
+                                Entendido
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
