@@ -6,7 +6,9 @@ import QRCode from 'qrcode';
 
 function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
   const [filtroEstado, setFiltroEstado] = useState('todos');
-  const [error, setError] = useState('');
+  
+  // Estado para el Modal de Error (Pop Up)
+  const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
   
   // Estado Mapa 
   const [viewState, setViewState] = useState({
@@ -35,6 +37,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
     switch (estado) {
       case 'operativo': return 'green';
       case 'mantenimiento': return 'orange';
+      case 'fuera_de_servicio': return 'black'; 
       case 'fuera_de_Servicio': return 'black';
       default: return 'gray';
     }
@@ -42,7 +45,6 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
 
   const handleMapClick = (event) => {
     const { lng, lat } = event.lngLat;
-    //limites UBB
     const limitesUBB = [
       { lat: -36.82062174, lng: -73.01483544 },
       { lat: -36.82082823, lng: -73.01619221 },
@@ -51,7 +53,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
       { lat: -36.82445675, lng: -73.01175369 },
       { lat: -36.82155629, lng: -73.01028303 },
     ];
-    //validar limites UBB
+    
     const puntoLimite = (latitude, longitude, polygon) => {
       let x = latitude, y = longitude;
       let inside = false;
@@ -68,7 +70,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
     
     const estaDentro = puntoLimite(lat, lng, limitesUBB);
     if (!estaDentro) {
-      alert("El bicicletero debe estar dentro del campus UBB");
+      showError("El bicicletero debe estar dentro del campus UBB");
       return;
     }
     setMarcaLocalizacion({ lat, lng });
@@ -82,10 +84,24 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
     setHoraApertura('07:00');
     setHoraCierre('21:00');
     setguardiaId('');
-    setError('');
+  };
+
+  // Función Helper para mostrar el Pop Up de Error
+  const showError = (msg) => {
+    setErrorModal({ isOpen: true, message: msg });
+  };
+
+  const closeError = () => {
+    setErrorModal({ isOpen: false, message: '' });
   };
 
   const handleEditClick = (bicicletero) => {
+    // --- NUEVO: BLOQUEO LÓGICO CON MENSAJE ---
+    if (bicicletero.bicicletasGuardadas > 0) {
+        showError("No se puede editar bicicletero en uso");
+        return; // Detenemos la ejecución aquí
+    }
+
     setEditarId(bicicletero.id);
     setUbicacion(bicicletero.ubicacion);
     setCapacidad(bicicletero.capacidad);
@@ -98,7 +114,6 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      setError('');
       const newData = {
         ubicacion,
         capacidad: parseInt(capacidad, 10),
@@ -118,20 +133,27 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
         alert('Bicicletero creado');
       }
       resetFormulario();
-      onRefresh(); // Recargar datos en el padre
+      onRefresh(); 
     } catch (err) {
-      setError(err.message);
+      showError(err.message || "Error al guardar");
     }
   };
 
-  const handleDeleteBicicletero = async (id) => {
+  // --- MODIFICADO: AHORA RECIBE EL OBJETO ENTERO 'b' ---
+  const handleDeleteBicicletero = async (bicicletero) => {
+    // --- NUEVO: BLOQUEO LÓGICO CON MENSAJE ---
+    if (bicicletero.bicicletasGuardadas > 0) {
+        showError("No se puede eliminar bicicletero en uso");
+        return; // Detenemos la ejecución aquí
+    }
+
     if (!window.confirm("¿Estás seguro de eliminar este bicicletero?")) return;
     try {
-      await deleteBicicletero(id);
+      await deleteBicicletero(bicicletero.id);
       alert('Bicicletero eliminado');
-      onRefresh(); // Recargar datos en el padre
+      onRefresh(); 
     } catch (err) {
-      setError(err.message);
+      showError(err.message || "Error al eliminar");
     }
   };
 
@@ -142,15 +164,13 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
 
   const handleVerQR = async (bicicletero) => {
     try {
-      // Creamos un objeto con los datos vitales para la validación
       const qrData = JSON.stringify({
         id: bicicletero.id,
         lat: parseFloat(bicicletero.latitud),
         lng: parseFloat(bicicletero.longitud),
-        tipo: 'bicicletero_ubicacion' // Identificador para saber qué estamos escaneando
+        tipo: 'bicicletero_ubicacion' 
       });
 
-      // Generamos la imagen
       const url = await QRCode.toDataURL(qrData, {
         width: 300,
         margin: 2,
@@ -162,7 +182,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
       setShowQrModal(true);
     } catch (err) {
       console.error("Error generando QR", err);
-      alert("No se pudo generar el código QR");
+      showError("No se pudo generar el código QR");
     }
   };
 
@@ -188,10 +208,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
         <h2>Gestión de Bicicleteros</h2>
       </div>
 
-      {error && <div style={{ color: 'red', marginBottom: '10px' }}>Error: {error}</div>}
-
       <div className="bicicleteros-layout">
-        {/* Columna Izquierda: Mapa */}
         <div className="map-column">
           <div className="map-wrapper">
             <Map
@@ -224,7 +241,6 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
           </div>
         </div>
 
-        {/* Columna Derecha: Formulario */}
         <div className="form-column">
           <form onSubmit={handleSubmit} className="admin-form card-container">
             <h3>{editarId ? 'Editar Bicicletero' : 'Nuevo Bicicletero'}</h3>
@@ -241,7 +257,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
               <select value={estado} onChange={(e) => setEstado(e.target.value)}>
                 <option value="operativo">Operativo</option>
                 <option value="mantenimiento" >Mantenimiento</option>
-                <option value="fuera_de_Servicio">Fuera de servicio</option>
+                <option value="fuera_de_servicio">Fuera de servicio</option>
               </select>
             </div>
             <div>
@@ -279,7 +295,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
               <option value="todos">Todos</option>
               <option value="operativo">Operativo</option>
               <option value="mantenimiento">Mantenimiento</option>
-              <option value="fuera_de_Servicio">Fuera de servicio</option>
+              <option value="fuera_de_servicio">Fuera de servicio</option>
             </select>
           </div>
         </div>
@@ -299,50 +315,90 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
           <tbody>
             {bicicleterosFiltrados.length > 0 ? (
               bicicleterosFiltrados.map(b => (
-                <tr key={b.id}>
-                  <td>{b.ubicacion}</td>
-                  <td>{b.latitud}</td>
-                  <td>{b.longitud}</td>
-                  <td>{b.bicicletasGuardadas} / {b.capacidad}</td>
-                  <td><span className={`badge ${b.estado}`}>{b.estado}</span></td>
-                  <td>{b.horaApertura && b.horaCierre ? `${b.horaApertura} - ${b.horaCierre}` : '24/7'}</td>
-                  <td>{b.guardiaAsignado ? `${b.guardiaAsignado.nombre}` : '-'}</td>
-                  <td>
-                    <button className="btn-edit" onClick={() => handleEditClick(b)}>Editar</button>
-                    <button className="btn-primary" style={{ padding: '5px 10px', fontSize: '0.9rem', backgroundColor: '#6c757d' }} 
-                    onClick={() => handleVerQR(b)}>Ver QR</button>
-                    <button className="btn-delete" onClick={() => handleDeleteBicicletero(b.id)}>Eliminar</button>
-                  </td>
-                </tr>
-              ))
+                  <tr key={b.id}>
+                    <td>{b.ubicacion}</td>
+                    <td>{b.latitud}</td>
+                    <td>{b.longitud}</td>
+                    <td>{b.bicicletasGuardadas} / {b.capacidad}</td>
+                    <td><span className={`badge ${b.estado}`}>{b.estado}</span></td>
+                    <td>{b.horaApertura && b.horaCierre ? `${b.horaApertura} - ${b.horaCierre}` : '24/7'}</td>
+                    <td>{b.guardiaAsignado ? `${b.guardiaAsignado.nombre}` : '-'}</td>
+                    <td>
+                      {/* BOTONES HABILITADOS PERO CON LÓGICA DE BLOQUEO INTERNA */}
+                      <button 
+                        className="btn-edit" 
+                        onClick={() => handleEditClick(b)}
+                        // OPCIONAL: Puedes dejarlos ligeramente opacos para insinuar que están "ocupados"
+                        // style={b.bicicletasGuardadas > 0 ? { opacity: 0.7 } : {}}
+                      >
+                        Editar
+                      </button>
+
+                      <button className="btn-primary" style={{ padding: '5px 10px', fontSize: '0.9rem', backgroundColor: '#6c757d', marginLeft: '5px' }} 
+                        onClick={() => handleVerQR(b)}>Ver QR</button>
+                      
+                      <button 
+                        className="btn-delete" 
+                        onClick={() => handleDeleteBicicletero(b)}
+                        style={{ marginLeft: '5px' }}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))
             ) : (
               <tr><td colSpan="8">No hay bicicleteros registrados</td></tr>
             )}
           </tbody>
         </table>
       </div>
+      
+      {/* --- MODAL DE QR --- */}
       {showQrModal && (
         <div className="modal-overlay" onClick={cerrarModal}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <button className="btn-close" onClick={cerrarModal}>×</button>
                 <h3 style={{marginTop: 0, color: '#2c3e50'}}>Código QR Bicicletero</h3>
                 <p style={{ color: '#666' }}>{selectedBicicletero?.ubicacion}</p>
-                
                 <div className="qr-display-container">
                     {qrUrl && <img src={qrUrl} alt="QR Code" className="qr-image" />}
                 </div>
-
                 <div className="modal-actions">
-                    <button className="btn-primary" onClick={handleDescargarQR}>
-                        ⬇ Descargar
-                    </button>
-                    <button className="btn-secondary" onClick={cerrarModal}>
-                        Cerrar
-                    </button>
+                    <button className="btn-primary" onClick={handleDescargarQR}>⬇ Descargar</button>
+                    <button className="btn-secondary" onClick={cerrarModal}>Cerrar</button>
                 </div>
             </div>
         </div>
       )}
+
+      {/* --- MODAL DE ERROR (POP UP) --- */}
+      {errorModal.isOpen && (
+        <div className="modal-overlay" onClick={closeError}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', borderTop: '5px solid #e74c3c' }}>
+            <button className="btn-close" onClick={closeError}>×</button>
+            
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <div style={{ fontSize: '50px', marginBottom: '15px' }}>⚠️</div>
+              <h3 style={{ color: '#e74c3c', margin: '0 0 10px 0' }}>Operación Denegada</h3>
+              <p style={{ fontSize: '1.1rem', color: '#555', lineHeight: '1.5' }}>
+                {errorModal.message}
+              </p>
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                className="btn-secondary" 
+                onClick={closeError}
+                style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none' }}
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
