@@ -39,8 +39,12 @@ function PersonalManager({ personalList, onRefresh }) {
     };
 
     const handleEditPersonalClick = (usuario) => {
-        // Validación Frontend (Bloqueo lógico)
-        if (usuario.BicicleterosAsignados && usuario.BicicleterosAsignados.length > 0) {
+        // Validación Frontend (Bloqueo lógico actualizado a AM/PM)
+        // Revisamos si tiene asignaciones en la mañana O en la tarde
+        const ocupado = (usuario.bicicleterosAM && usuario.bicicleterosAM.length > 0) || 
+                        (usuario.bicicleterosPM && usuario.bicicleterosPM.length > 0);
+
+        if (ocupado) {
             showError("No se puede modificar un guardia que tiene bicicleteros asignados.");
             return;
         }
@@ -94,8 +98,11 @@ function PersonalManager({ personalList, onRefresh }) {
     };
 
     const handleDeletePersonal = async (usuario) => {
-        // Validación Frontend (Bloqueo lógico)
-        if (usuario.BicicleterosAsignados && usuario.BicicleterosAsignados.length > 0) {
+        // Validación Frontend (Bloqueo lógico actualizado a AM/PM)
+        const ocupado = (usuario.bicicleterosAM && usuario.bicicleterosAM.length > 0) || 
+                        (usuario.bicicleterosPM && usuario.bicicleterosPM.length > 0);
+
+        if (ocupado) {
             showError("No se puede eliminar un guardia que tiene bicicleteros asignados.");
             return;
         }
@@ -215,8 +222,9 @@ function PersonalManager({ personalList, onRefresh }) {
                     <tbody>
                         {personalFiltrado.length > 0 ? (
                             personalFiltrado.map(p => {
-                                // VERIFICAR SI TIENE ASIGNACIONES
-                                const tieneAsignacion = p.BicicleterosAsignados && p.BicicleterosAsignados.length > 0;
+                                // VERIFICAR SI TIENE ASIGNACIONES (AM o PM)
+                                const tieneAsignacion = (p.bicicleterosAM && p.bicicleterosAM.length > 0) || 
+                                                        (p.bicicleterosPM && p.bicicleterosPM.length > 0);
                                 
                                 return (
                                     <tr key={p.rut}>

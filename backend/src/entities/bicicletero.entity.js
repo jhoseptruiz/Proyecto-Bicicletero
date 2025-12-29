@@ -55,14 +55,26 @@ export const Bicicletero = new EntitySchema({
       type: "time",
       nullable: true,
     },
+    horaCambioTurno:{
+      type: "time",
+      nullable: true,
+      default: "14:00:00"
+    }
   },
   relations: {
-    guardiaAsignado: {
+    guardiaAM: {
       type: "many-to-one",
       target: "User",
-      joinColumn: true,
+      joinColumn: { name: "guardiaAMRut"},
       nullable: true, //bicicleteros sin guardia
-      inverseSide: "BicicleterosAsignados"
+      eager: true
+    },
+    guardiaPM:{
+      type: "many-to-one",
+      target: "User",
+      joinColumn: { name: "guardiaPMRut"},
+      nullable: true, //bicicleteros sin guardia
+      eager: true
     },
     usos: {
       type: "one-to-many",

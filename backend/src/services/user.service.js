@@ -4,6 +4,7 @@ import { AppDataSource } from "../config/configDb.js";
 import { User } from "../entities/user.entity.js";
 import { Bicicletero } from "../entities/bicicletero.entity.js"; 
 import bcrypt from "bcrypt";
+import { Brackets } from "typeorm";
 
 const userRepository = AppDataSource.getRepository(User);
 const bicicleteroRepo = AppDataSource.getRepository(Bicicletero); 
@@ -22,7 +23,6 @@ export async function createUser(data) {
   };
 
   await userRepository.insert(userData);
-
   delete userData.password;
   return userData;
 }
@@ -34,7 +34,7 @@ export async function findUserByEmail(email) {
 export async function EncontrarPersonal(){
   return await userRepository.find({
     where: [{role: "guardia"}, {role: "admin"}],
-    relations: ["BicicleterosAsignados"], 
+    relations: ["bicicleterosAM", "bicicleterosPM"], 
     select: {
         rut: true,
         nombre: true,
@@ -53,7 +53,10 @@ export async function findUserByRut(rut) {
 export async function updateUser(rut, data) {
   // Validacion si guardia esta asignado a bicicletero
   const bicicleterosAsignados = await bicicleteroRepo.count({
-    where: { guardiaAsignado: { rut: rut } }
+    where:[
+      { guardiaAM: { rut: rut } },
+      { guardiaPM: { rut: rut } }
+    ]
   });
 
   if (bicicleterosAsignados > 0) {
