@@ -80,8 +80,16 @@ export async function crearSolicitudIngreso(rutAlumno, bicicleteroId, lat, lng, 
         const minutosApertura = hApertura * 60 + mApertura;
         const minutosCierre = hCierre * 60 + mCierre;
 
-        if (minutosActuales < minutosApertura || minutosActuales > minutosCierre) {
-            throw new Error(`El bicicletero está cerrado. Horario: ${bicicletero.horaApertura} - ${bicicletero.horaCierre}`);
+        if (minutosApertura <= minutosCierre) {
+            // Horario normal (ej. 08:00 - 20:00)
+            if (minutosActuales < minutosApertura || minutosActuales > minutosCierre) {
+                throw new Error(`El bicicletero está cerrado. Horario: ${bicicletero.horaApertura} - ${bicicletero.horaCierre}`);
+            }
+        } else {
+            // Horario que cruza medianoche (ej. 20:00 - 06:00)
+            if (minutosActuales < minutosApertura && minutosActuales > minutosCierre) {
+                throw new Error(`El bicicletero está cerrado actualmente. Horario: ${bicicletero.horaApertura} - ${bicicletero.horaCierre}`);
+            }
         }
     }
 
@@ -110,7 +118,7 @@ export async function crearSolicitudIngreso(rutAlumno, bicicleteroId, lat, lng, 
 }
 
 /**
- * Genera la solicitud de salida. 
+ * Genera la solicitud de salida.
  */
 export async function crearSolicitudSalida(rutAlumno, bicicleteroId, lat, lng, bicicletaId) {
     // Validar concurrencia

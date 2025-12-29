@@ -40,24 +40,14 @@ function ContenidoAlumno({ alIrAlPerfil }) {
 
     useEffect(() => {
         verificarEstado();
-        // Polling para mantener sincronizado el boton
         const interval = setInterval(verificarEstado, 5000);
         return () => clearInterval(interval);
     }, []);
 
     const handleOpenScan = async (props = {}) => {
-        // Validación Preventiva (Frontend) - Solo bloqueamos si hay una solicitud PENDIENTE de aprobación/retiro
         const solicitudEnProceso = statuses.find(s => ['pendiente', 'solicitando_retiro'].includes(s.estado));
 
-        // Excepción: Si 'props.action' es 'retirar' y viene con ID, permitimos abrir para esa bici (si no es la que está trabada)
-        // Pero por simplicidad, si hay algo pendiente, bloqueamos todo escaneo nuevo.
         if (solicitudEnProceso) {
-            // Si la acción es retirar ESTA misma bici que está en 'solicitando_retiro', entonces NO bloqueamos (permitimos ver estado? No, el scanner es para INICIAR acción)
-            // Scanner se usa para: 
-            // 1. Ingresar (Bloqueado si hay pendiente)
-            // 2. Retirar (Bloqueado si hay pendiente DE OTRA bici).
-
-            // Si estoy solicitando retiro, ya escaneé. No necesito escanear de nuevo para "ver".
             if (solicitudEnProceso.estado === 'pendiente') {
                 alert("⚠️ Ya tienes una solicitud pendiente. Espera a que el guardia la apruebe.");
                 return;
@@ -68,7 +58,6 @@ function ContenidoAlumno({ alIrAlPerfil }) {
             }
         }
 
-        // Refrescar estado antes de abrir
         await verificarEstado();
 
         setScanProps(props);
@@ -93,8 +82,6 @@ function ContenidoAlumno({ alIrAlPerfil }) {
         );
     }
 
-    // Siempre mostrar el botón si no estamos en vista de escaneo, 
-    // la validación de bloqueo se hace al hacer click.
     const shouldShowScanner = true;
 
     return (

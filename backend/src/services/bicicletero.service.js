@@ -72,7 +72,6 @@ export async function ActualizarBicicletero(id, data) {
     }
 
     //validar guardia (si cambia)
-    let guardia = null;
     const { guardiaAMId, guardiaPMId, horaCambioTurno, ...updateData } = data;
 
     //logica guardia mañana

@@ -10,7 +10,6 @@ import {
 } from "../services/guardia.service.js";
 import { handleSuccess, handleErrorServer, handleErrorClient } from "../Handlers/responseHandlers.js";
 
-// Obtener bicicleteros del guardia
 export async function getMisBicicleteros(req, res) {
   try {
     const rutGuardia = req.user.sub;
@@ -21,7 +20,6 @@ export async function getMisBicicleteros(req, res) {
   }
 }
 
-// Obtener solicitudes pendientes
 export async function getSolicitudes(req, res) {
   try {
     const id = req.params.id || req.params.bicicleteroId;
@@ -33,7 +31,6 @@ export async function getSolicitudes(req, res) {
   }
 }
 
-// Aprobar ingreso
 export async function postAprobarIngreso(req, res) {
   try {
     const { id } = req.params;
@@ -49,7 +46,6 @@ export async function postAprobarIngreso(req, res) {
   }
 }
 
-// Rechazar ingreso
 export async function postRechazarIngreso(req, res) {
   try {
     const { id } = req.params;
@@ -61,7 +57,6 @@ export async function postRechazarIngreso(req, res) {
   }
 }
 
-// Obtener activos en custodia
 export async function getActivos(req, res) {
   try {
     const id = req.params.id || req.params.bicicleteroId;
@@ -72,7 +67,6 @@ export async function getActivos(req, res) {
   }
 }
 
-// Finalizar estadia
 export async function postFinalizarSalida(req, res) {
   try {
     const { id } = req.params;
@@ -83,20 +77,18 @@ export async function postFinalizarSalida(req, res) {
   }
 }
 
-// Modificar ubicación
 export async function putModificarUbicacion(req, res) {
   try {
     const { id } = req.params;
-    const casilleroFinal = casillero || req.body.nuevoCasillero;
+    const { nuevoCasillero } = req.body;
 
-    const resultado = await modificarUbicacion(id, casilleroFinal);
+    const resultado = await modificarUbicacion(id, nuevoCasillero);
     handleSuccess(res, 200, "Ubicación modificada", resultado);
   } catch (error) {
     handleErrorServer(res, 400, "Error al modificar", error.message);
   }
 }
 
-// Obtener resumen global
 export async function getResumenSolicitudes(req, res) {
   try {
     const rutGuardia = req.user.sub;

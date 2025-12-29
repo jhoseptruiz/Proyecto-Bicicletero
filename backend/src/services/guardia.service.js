@@ -7,9 +7,7 @@ import { Brackets } from "typeorm";
 const bicicleteroRepo = AppDataSource.getRepository(Bicicletero);
 const registroRepo = AppDataSource.getRepository(RegistroUso);
 
-// ... (Mantén tu función findBicicleterosByGuardia existente) ...
 export async function findBicicleterosByGuardia(guardiaRut) {
-  // 1. Buscamos TODOS los bicicleteros donde este usuario sea guardia (mañana O tarde)
   const asignados = await bicicleteroRepo.createQueryBuilder("b")
     .leftJoinAndSelect("b.guardiaAM", "gm")
     .leftJoinAndSelect("b.guardiaPM", "gt")
@@ -17,21 +15,17 @@ export async function findBicicleterosByGuardia(guardiaRut) {
     .orWhere("gt.rut = :rut", { rut: guardiaRut })
     .getMany();
 
-  // 2. Filtramos en memoria según la hora actual y la hora de cambio de CADA bicicletero
   const ahora = new Date();
   const horaActualStr = `${ahora.getHours().toString().padStart(2, '0')}:${ahora.getMinutes().toString().padStart(2, '0')}:00`;
 
   const bicicleterosActivos = asignados.filter(b => {
-    // Si no hay hora configurada, usamos 14:00 por defecto
     const horaCorte = b.horaCambioTurno || "14:00:00";
 
     const esTurnoManana = horaActualStr < horaCorte;
 
     if (esTurnoManana) {
-      // Si es temprano, lo muestro SOLO si soy el guardia de la mañana
       return b.guardiaAM?.rut === guardiaRut;
     } else {
-      // Si es tarde, lo muestro SOLO si soy el guardia de la tarde
       return b.guardiaPM?.rut === guardiaRut;
     }
   });
@@ -57,7 +51,6 @@ export async function aprobarIngreso(registroId, casilleroAsignado, guardiaRut) 
     // A. Buscar la solicitud
     const registro = await manager.findOne(RegistroUso, {
       where: { id: registroId },
-      where: { id: registroId },
       relations: ["bicicletero", "bicicletero.guardiaAM", "bicicletero.guardiaPM"]
     });
 
@@ -77,9 +70,25 @@ export async function aprobarIngreso(registroId, casilleroAsignado, guardiaRut) 
     // B. Validar Horario
     if (bicicletero.horaApertura && bicicletero.horaCierre) {
       const ahora = new Date();
-      const horaActual = `${ahora.getHours()}:${ahora.getMinutes()}:00`;
-      if (horaActual < bicicletero.horaApertura || horaActual > bicicletero.horaCierre) {
-        throw new Error("El bicicletero está fuera de horario operativo.");
+      const [horaActual, minActual] = [ahora.getHours(), ahora.getMinutes()];
+
+      const [hApertura, mApertura] = bicicletero.horaApertura.split(':').map(Number);
+      const [hCierre, mCierre] = bicicletero.horaCierre.split(':').map(Number);
+
+      const minutosActuales = horaActual * 60 + minActual;
+      const minutosApertura = hApertura * 60 + mApertura;
+      const minutosCierre = hCierre * 60 + mCierre;
+
+      if (minutosApertura <= minutosCierre) {
+        // Horario normal (ej. 08:00 - 20:00)
+        if (minutosActuales < minutosApertura || minutosActuales > minutosCierre) {
+          throw new Error(`El bicicletero está cerrado. Horario: ${bicicletero.horaApertura} - ${bicicletero.horaCierre}`);
+        }
+      } else {
+        // Horario que cruza medianoche (ej. 07:00 - 06:00)
+        if (minutosActuales < minutosApertura && minutosActuales > minutosCierre) {
+          throw new Error(`El bicicletero está cerrado actualmente. Horario: ${bicicletero.horaApertura} - ${bicicletero.horaCierre}`);
+        }
       }
     }
 

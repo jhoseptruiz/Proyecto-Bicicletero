@@ -88,7 +88,14 @@ function StatusCard({ status, onScan, onCancel }) {
         const openTime = hA * 60 + mA;
         const closeTime = hC * 60 + mC;
 
-        return currentTime >= openTime && currentTime <= closeTime;
+        if (openTime <= closeTime) {
+            // Horario normal (ej. 08:00 - 20:00)
+            return currentTime >= openTime && currentTime <= closeTime;
+        } else {
+            // Horario que cruza medianoche (ej. 07:00 - 06:00)
+            // Está abierto si NO estás en el período de cierre
+            return !(currentTime < openTime && currentTime > closeTime);
+        }
     };
 
     const canWithdraw = isWithinHours();

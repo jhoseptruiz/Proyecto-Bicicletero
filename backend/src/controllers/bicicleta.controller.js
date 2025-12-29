@@ -16,14 +16,12 @@ export async function postBicicleta(req, res) {
       return handleErrorClient(res, 400, "La foto de la bicicleta es requerida.");
     }
 
-    // Validar tipo de archivo (aunque multer filtra, doble seguridad)
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedMimeTypes.includes(req.file.mimetype)) {
       await fs.unlink(req.file.path);
       return handleErrorClient(res, 400, "Formato de imagen no válido. Use JPG, PNG o WEBP.");
     }
 
-    // Validar Marca/Modelo
     const marcaRegex = /^[a-zA-Z0-9\sñÑáéíóúÁÉÍÓÚ\-\.]+$/;
     if (!req.body.marca || !marcaRegex.test(req.body.marca)) {
       await fs.unlink(req.file.path); // Limpiar archivo subido si falla validación
@@ -48,7 +46,7 @@ export async function postBicicleta(req, res) {
     const fotoUrlRelativa = path.join('uploads', 'bicicletas', outputFilename).replace(/\\/g, "/");
 
     const bicicletaData = {
-      marca: req.body.marca.trim(), 
+      marca: req.body.marca.trim(),
       fotoUrl: fotoUrlRelativa
     };
 

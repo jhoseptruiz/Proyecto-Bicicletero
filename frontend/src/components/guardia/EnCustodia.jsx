@@ -1,10 +1,10 @@
 import React from 'react';
 
-const API_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000/api'; 
+const API_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000/api';
 const getFotoUrl = (url) => {
   if (!url) return "https://via.placeholder.com/150?text=Sin+Foto";
   if (url.startsWith('http')) return url;
-  const baseUrl = API_URL.replace('/api', ''); 
+  const baseUrl = API_URL.replace('/api', '');
   return `${baseUrl}/${url}`;
 };
 
@@ -16,10 +16,10 @@ const EnCustodia = ({ activos, onCambiarCasillero, onFinalizar }) => {
   return (
     <>
       {activos.map((activo, index) => (
-        <div 
-           key={activo.id} 
-           className="card-registro active-card fade-in-card"
-           style={{ animationDelay: `${index * 0.1}s` }}
+        <div
+          key={activo.id}
+          className="card-registro active-card fade-in-card"
+          style={{ animationDelay: `${index * 0.1}s` }}
         >
           <div className="casillero-badge">{activo.casillero}</div>
           <img src={getFotoUrl(activo.bicicleta.fotoUrl)} alt="Bici" className="card-img" />
@@ -28,26 +28,13 @@ const EnCustodia = ({ activos, onCambiarCasillero, onFinalizar }) => {
             <p className="rut-text">{activo.usuario.rut}</p>
             <p className="brand-text">Bici: {activo.bicicleta.marca}</p>
             <p className="time-text">
-              Entrada: {new Date(activo.fechaIngreso).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+              Entrada: {new Date(activo.fechaIngreso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </p>
-            
+
             <div className="card-actions">
               <button className="btn-action btn-change" onClick={() => onCambiarCasillero(activo.id)}>
                 Cambiar Casillero
               </button>
-
-              {/* ========================================================================
-                  TODO: BORRAR ESTE BOTÓN CUANDO LA SOLICITUD DE RETIRO ESTÉ IMPLEMENTADA
-                  ========================================================================
-                  Una vez que los alumnos puedan pedir su retiro desde la app,
-                  este botón ya no debe existir aquí, porque la acción se hará
-                  desde la pestaña "Solicitudes".
-              */}
-              <button className="btn-action btn-finish" onClick={() => onFinalizar(activo.id)}>
-                Finalizar / Salida (Manual)
-              </button>
-              {/* ======================================================================== */}
-
             </div>
           </div>
         </div>

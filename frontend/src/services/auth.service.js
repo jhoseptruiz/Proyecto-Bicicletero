@@ -1,6 +1,5 @@
 import apiClient from './api.js';
 
-// Servicio de Login
 export async function login(email, password) {
   try {
     const response = await apiClient.post('/auth/login', { email, password });
@@ -14,7 +13,6 @@ export async function login(email, password) {
   }
 }
 
-// Servicio de Registro
 export async function register(nombre, apellido, rut, email, password) {
   try {
     const response = await apiClient.post('/auth/register', { nombre, apellido, rut, email, password });

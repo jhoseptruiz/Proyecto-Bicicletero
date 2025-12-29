@@ -1,16 +1,15 @@
-import { EncontrarPersonal, createUser, updateUser, deleteUser} from "../services/user.service.js";
+import { EncontrarPersonal, createUser, updateUser, deleteUser } from "../services/user.service.js";
 import { handleSuccess, handleErrorServer } from "../Handlers/responseHandlers.js";
 
 export async function getPersonal(req, res) {
-    try{
+    try {
         const Personal = await EncontrarPersonal();
         handleSuccess(res, 200, "Usuarios Obtenidos", Personal);
-    } catch (error){
+    } catch (error) {
         handleErrorServer(res, 500, "Error al obtener Usuarios", error.message);
     }
 }
 
-//Crear Personal
 export async function createPersonal(req, res) {
     try {
         const roleInput = req.body.role;
@@ -20,21 +19,18 @@ export async function createPersonal(req, res) {
         const newPersonal = await createUser(data);
         handleSuccess(res, 201, "Usuario creado", newPersonal);
 
-    } catch (error) { 
-        // Verifica si el error es por duplicidad (RUT o Email ya existen)
+    } catch (error) {
         if (error.code === '23505') {
             return res.status(409).json({
                 message: "El usuario con ese RUT o email ya existe"
             });
         }
 
-        // Si es otro error, lanzamos el error genérico del servidor
         handleErrorServer(res, 500, "Error al crear Usuario", error.message);
 
     }
 }
 
-// Actualizar Personal
 export async function updatePersonal(req, res) {
     try {
         const { rut } = req.params;
@@ -43,15 +39,13 @@ export async function updatePersonal(req, res) {
         if (!update) {
             return handleErrorServer(res, 404, "Usuario no encontrado");
         }
-        //limpiar password en la respuesta
         delete update.password;
         handleSuccess(res, 200, "Usuario actualizado", update);
     } catch (error) {
         handleErrorServer(res, 500, "Error al actualizar Usuario", error.message);
     }
-}   
+}
 
-// Eliminar Personal
 export async function deletePersonal(req, res) {
     try {
         const { rut } = req.params;

@@ -44,8 +44,16 @@ function Scanner({ alCerrar, alIrAlPerfil, action, bicicletaId }) {
       const minutosApertura = parseInt(hA) * 60 + parseInt(mA);
       const minutosCierre = parseInt(hC) * 60 + parseInt(mC);
 
-      if (minutosActual < minutosApertura || minutosActual > minutosCierre) {
-        throw new Error(`El bicicletero está cerrado. Horario: ${detalles.horaApertura} - ${detalles.horaCierre}`);
+      if (minutosApertura <= minutosCierre) {
+        // Horario normal (ej. 08:00 - 20:00)
+        if (minutosActual < minutosApertura || minutosActual > minutosCierre) {
+          throw new Error(`El bicicletero está cerrado. Horario: ${detalles.horaApertura} - ${detalles.horaCierre}`);
+        }
+      } else {
+        // Horario que cruza medianoche (ej. 07:00 - 06:00)
+        if (minutosActual < minutosApertura && minutosActual > minutosCierre) {
+          throw new Error(`El bicicletero está cerrado. Horario: ${detalles.horaApertura} - ${detalles.horaCierre}`);
+        }
       }
     }
 

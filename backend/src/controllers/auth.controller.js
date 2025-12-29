@@ -1,12 +1,7 @@
-// Proyecto-Bicicletero/backend/src/controllers/auth.controller.js
-
 import { loginUser } from "../services/auth.service.js";
 import { createUser } from "../services/user.service.js";
 import { handleSuccess, handleErrorClient, handleErrorServer } from "../Handlers/responseHandlers.js";
 
-// ------------------------------------
-// --- Funciones Internas (Helpers) ---
-// ------------------------------------
 
 function normalizeRut(rut) {
   if (!rut || typeof rut !== 'string') {
@@ -26,18 +21,14 @@ function normalizeRut(rut) {
 }
 
 
-// --- Controladores de Autenticación (Exportados) ---
-
 export async function login(req, res) {
   try {
     const { email, password } = req.body;
 
-    // Validaciones
     if (!email || !password) {
       return handleErrorClient(res, 400, "Email y contraseña son requeridos");
     }
 
-    // Lógica de login
     const data = await loginUser(email, password);
     handleSuccess(res, 200, "Login exitoso", data);
 
@@ -53,13 +44,10 @@ export async function register(req, res) {
   let normalizedRut;
 
   try {
-    // 1. Validaciones básicas
     if (!data.rut || !data.email || !data.password || !data.nombre || !data.apellido) {
       return handleErrorClient(res, 400, "RUT, Nombre, apellido, Email y contraseña son requeridos");
     }
 
-    // 2. Validación de dominio UBB
-    // 2. Validación de Formato de Email y Texto seguro
     const emailRegex = /^[a-zA-Z0-9._-]+@(alumnos\.ubiobio\.cl|ubiobio\.cl)$/;
     if (!emailRegex.test(data.email)) {
       return handleErrorClient(res, 400, "El correo no tiene un formato válido o no pertenece a la Universidad del Bio-Bio.");
@@ -70,8 +58,7 @@ export async function register(req, res) {
       return handleErrorClient(res, 400, "El nombre y apellido solo pueden contener letras.");
     }
 
-    // 3. Normalización de RUT
-    normalizedRut = normalizeRut(data.rut); // Asignamos a la variable del scope superior
+    normalizedRut = normalizeRut(data.rut);
     if (!normalizedRut) {
       return handleErrorClient(res, 400, "El formato del RUT no es válido");
     }
@@ -81,36 +68,25 @@ export async function register(req, res) {
       rut: normalizedRut
     };
 
-    // 4. Creación de usuario (usando .insert() del servicio)
     const newUser = await createUser(userData);
 
     delete newUser.password;
     handleSuccess(res, 201, "Usuario registrado exitosamente", newUser);
 
   } catch (error) {
-
-    // 5. Manejo de errores de duplicidad
-    if (error.code === '23505') { // '23505' = Unique Violation
-
+    if (error.code === '23505') {
       const errorDetail = error.detail || "";
       const errorConstraint = error.constraint || "";
 
-      // Comprobamos si el detalle del error incluye el RUT normalizado
-      // o si el nombre de la "constraint" violada es la del RUT.
       if (errorDetail.includes(normalizedRut) || errorConstraint.includes('users_rut_pk')) {
         handleErrorClient(res, 409, "El RUT ya está registrado");
-
-        // Hacemos lo mismo para el email
       } else if (errorDetail.includes(data.email) || errorConstraint.includes('users_email_key')) {
         handleErrorClient(res, 409, "El email ya está registrado");
 
       } else {
-        // Fallback genérico si no podemos identificar la columna
         handleErrorClient(res, 409, "El RUT o Email ya están registrados");
       }
-
     } else {
-      // Otros errores
       handleErrorServer(res, 500, "Error interno del servidor", error.message);
     }
   }

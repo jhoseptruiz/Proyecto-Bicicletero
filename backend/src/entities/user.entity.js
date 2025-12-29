@@ -1,5 +1,3 @@
-// Proyecto-Bicicletero/backend/src/entities/user.entity.js
-
 import { EntitySchema } from "typeorm";
 import { Bicicletero } from "./bicicletero.entity.js";
 
@@ -7,16 +5,12 @@ export const User = new EntitySchema({
   name: "User",
   tableName: "users",
   columns: {
-
-    // --- Clave Primaria ---
     rut: {
       primary: true,
       type: "varchar",
       length: 12,
       nullable: false,
     },
-
-    // --- Datos Personales ---
     nombre: {
       type: "varchar",
       length: 100,
@@ -27,8 +21,6 @@ export const User = new EntitySchema({
       length: 100,
       nullable: false
     },
-
-    // --- Credenciales y Rol ---
     email: {
       type: "varchar",
       length: 255,
@@ -46,7 +38,6 @@ export const User = new EntitySchema({
       default: "alumno",
       nullable: false,
     },
-    // --- Timestamps ---
     created_at: {
       type: "timestamp",
       createDate: true,
@@ -58,9 +49,8 @@ export const User = new EntitySchema({
       default: () => "CURRENT_TIMESTAMP",
     },
   },
-  //guardia puede tener varios bicicleteros asignados
   relations: {
-   bicicleterosAM: {
+    bicicleterosAM: {
       type: "one-to-many",
       target: "Bicicletero",
       inverseSide: "guardiaAM", // Debe coincidir con bicicletero.entity.js
