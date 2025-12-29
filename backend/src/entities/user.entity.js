@@ -60,16 +60,15 @@ export const User = new EntitySchema({
   },
   //guardia puede tener varios bicicleteros asignados
   relations: {
-    BicicleterosAsignados: {
+   bicicleterosAM: {
       type: "one-to-many",
       target: "Bicicletero",
-      inverseSide: "guardiaAsignado",
+      inverseSide: "guardiaAM", // Debe coincidir con bicicletero.entity.js
     },
-
-    bicicletas: {
+    bicicleterosPM: {
       type: "one-to-many",
-      target: "Bicicleta",
-      inverseSide: "propietario",
+      target: "Bicicletero",
+      inverseSide: "guardiaPM", // Debe coincidir con bicicletero.entity.js
     },
     usos: {
       type: "one-to-many",

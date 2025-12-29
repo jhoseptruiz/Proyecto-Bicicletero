@@ -6,7 +6,9 @@ import QRCode from 'qrcode';
 
 function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
   const [filtroEstado, setFiltroEstado] = useState('todos');
-  const [error, setError] = useState('');
+
+  // --- ESTADO PARA MODAL DE ERROR (POP UP) ---
+  const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
 
   // Estado Mapa 
   const [viewState, setViewState] = useState({
@@ -15,18 +17,22 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
     zoom: 16
   });
   const [marcaLocalizacion, setMarcaLocalizacion] = useState({ lat: -36.8222, lng: -73.0134 });
-  const MAPBOX_TOKEN = "pk.eyJ1IjoibWlsZW5ja2FhIiwiYSI6ImNtamxxZDAzYjJxNTIza3B5OXZmcmk1cXMifQ.xW3QubyrM10uSbt08RlAPA";
+  const MAPBOX_TOKEN = "pk.eyJ1IjoibWlsZW5ja2FhIiwiYSI6ImNphamxxZDAzYjJxNTIza3B5OXZmcmk1cXMifQ.xW3QubyrM10uSbt08RlAPA";
 
-  // Estado Formulario Bicicletero 
+  // --- ESTADOS DEL FORMULARIO---
   const [editarId, setEditarId] = useState('');
   const [ubicacion, setUbicacion] = useState('');
   const [capacidad, setCapacidad] = useState(15);
   const [estado, setEstado] = useState('operativo');
   const [horaApertura, setHoraApertura] = useState('07:00');
   const [horaCierre, setHoraCierre] = useState('21:00');
-  const [guardiaId, setguardiaId] = useState('');
 
-  // Estados qr
+  // estados para Turnos
+  const [guardiaAMId, setguardiaAMId] = useState('');
+  const [guardiaPMId, setguardiaPMId] = useState('');
+  const [horaCambioTurno, setHoraCambioTurno] = useState('14:00');
+
+  // Estados QR
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrUrl, setQrUrl] = useState('');
   const [selectedBicicletero, setSelectedBicicletero] = useState(null);
@@ -42,7 +48,6 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
 
   const handleMapClick = (event) => {
     const { lng, lat } = event.lngLat;
-    //limites UBB
     const limitesUBB = [
       { lat: -36.82062174, lng: -73.01483544 },
       { lat: -36.82082823, lng: -73.01619221 },
@@ -51,7 +56,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
       { lat: -36.82445675, lng: -73.01175369 },
       { lat: -36.82155629, lng: -73.01028303 },
     ];
-    //validar limites UBB
+
     const puntoLimite = (latitude, longitude, polygon) => {
       let x = latitude, y = longitude;
       let inside = false;
@@ -68,7 +73,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
 
     const estaDentro = puntoLimite(lat, lng, limitesUBB);
     if (!estaDentro) {
-      alert("El bicicletero debe estar dentro del campus UBB");
+      showError("El bicicletero debe estar dentro del campus UBB");
       return;
     }
     setMarcaLocalizacion({ lat, lng });
@@ -81,33 +86,80 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
     setEstado('operativo');
     setHoraApertura('07:00');
     setHoraCierre('21:00');
-    setguardiaId('');
-    setError('');
+    // Reset Turnos
+    setguardiaAMId('');
+    setguardiaPMId('');
+    setHoraCambioTurno('14:00');
   };
 
+  // --- HELPER PARA POP UP ERROR ---
+  const showError = (msg) => {
+    setErrorModal({ isOpen: true, message: msg });
+  };
+
+  const closeError = () => {
+    setErrorModal({ isOpen: false, message: '' });
+  };
+
+  // --- MANEJADORES CON BLOQUEO LÓGICO ---
+
   const handleEditClick = (bicicletero) => {
+    // 1. BLOQUEO: Si hay bicis, mostramos Pop Up y detenemos
+    if (bicicletero.bicicletasGuardadas > 0) {
+      showError("No se pudo modificar porque el bicicletero está en uso.");
+      return;
+    }
+
     setEditarId(bicicletero.id);
     setUbicacion(bicicletero.ubicacion);
     setCapacidad(bicicletero.capacidad);
     setEstado(bicicletero.estado);
     setHoraApertura(bicicletero.horaApertura);
     setHoraCierre(bicicletero.horaCierre);
-    setguardiaId(bicicletero.guardiaAsignado ? bicicletero.guardiaAsignado.rut : '');
+
+    // Cargar Turnos
+    setguardiaAMId(bicicletero.guardiaAM ? bicicletero.guardiaAM.rut : '');
+    setguardiaPMId(bicicletero.guardiaPM ? bicicletero.guardiaPM.rut : '');
+    setHoraCambioTurno(bicicletero.horaCambioTurno || '14:00');
+
+    // Cargar posición en mapa
+    if (bicicletero.latitud && bicicletero.longitud) {
+      setMarcaLocalizacion({ lat: parseFloat(bicicletero.latitud), lng: parseFloat(bicicletero.longitud) });
+    }
+  };
+
+  const handleDeleteBicicletero = async (bicicletero) => {
+    // 1. BLOQUEO: Si hay bicis, mostramos Pop Up y detenemos
+    if (bicicletero.bicicletasGuardadas > 0) {
+      showError("No se puede eliminar porque el bicicletero está en uso.");
+      return;
+    }
+
+    if (!window.confirm("¿Estás seguro de eliminar este bicicletero?")) return;
+    try {
+      await deleteBicicletero(bicicletero.id);
+      alert('Bicicletero eliminado');
+      onRefresh();
+    } catch (err) {
+      showError(err.message || "Error al eliminar");
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      setError('');
       const newData = {
         ubicacion,
         capacidad: parseInt(capacidad, 10),
         estado,
         horaApertura: horaApertura || null,
         horaCierre: horaCierre || null,
-        guardiaId: guardiaId || null,
         latitud: marcaLocalizacion.lat,
         longitud: marcaLocalizacion.lng,
+        // Datos de Turnos
+        guardiaAMId: guardiaAMId || null,
+        guardiaPMId: guardiaPMId || null,
+        horaCambioTurno
       };
 
       if (editarId) {
@@ -118,20 +170,9 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
         alert('Bicicletero creado');
       }
       resetFormulario();
-      onRefresh(); // Recargar datos en el padre
+      onRefresh();
     } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleDeleteBicicletero = async (id) => {
-    if (!window.confirm("¿Estás seguro de eliminar este bicicletero?")) return;
-    try {
-      await deleteBicicletero(id);
-      alert('Bicicletero eliminado');
-      onRefresh(); // Recargar datos en el padre
-    } catch (err) {
-      setError(err.message);
+      showError(err.message || "Error al guardar");
     }
   };
 
@@ -140,17 +181,16 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
     return b.estado === filtroEstado;
   });
 
+  // --- QR HANDLERS ---
   const handleVerQR = async (bicicletero) => {
     try {
-      // Creamos un objeto con los datos vitales para la validación
       const qrData = JSON.stringify({
         id: bicicletero.id,
         lat: parseFloat(bicicletero.latitud),
         lng: parseFloat(bicicletero.longitud),
-        tipo: 'bicicletero_ubicacion' // Identificador para saber qué estamos escaneando
+        tipo: 'bicicletero_ubicacion'
       });
 
-      // Generamos la imagen
       const url = await QRCode.toDataURL(qrData, {
         width: 300,
         margin: 2,
@@ -162,7 +202,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
       setShowQrModal(true);
     } catch (err) {
       console.error("Error generando QR", err);
-      alert("No se pudo generar el código QR");
+      showError("No se pudo generar el código QR");
     }
   };
 
@@ -188,10 +228,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
         <h2>Gestión de Bicicleteros</h2>
       </div>
 
-      {error && <div style={{ color: 'red', marginBottom: '10px' }}>Error: {error}</div>}
-
       <div className="bicicleteros-layout">
-        {/* Columna Izquierda: Mapa */}
         <div className="map-column">
           <div className="map-wrapper">
             <Map
@@ -224,7 +261,6 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
           </div>
         </div>
 
-        {/* Columna Derecha: Formulario */}
         <div className="form-column">
           <form onSubmit={handleSubmit} className="admin-form card-container">
             <h3>{editarId ? 'Editar Bicicletero' : 'Nuevo Bicicletero'}</h3>
@@ -263,16 +299,47 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
               </div>
               <small>(Dejar vacios para 24/7)</small>
             </div>
-            <div>
-              <label>Guardia Asignado: </label>
-              <select value={guardiaId} onChange={(e) => setguardiaId(e.target.value)}>
-                <option value="">(Ninguno)</option>
-                {personalList.filter(p => p.role === 'guardia').map(g => (
-                  <option key={g.rut} value={g.rut}>{g.nombre} {g.apellido}</option>
-                ))}
-              </select>
+
+            {/* SECCIÓN DE TURNOS Y GUARDIAS (Reemplaza al guardiaId simple) */}
+            <div style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+              <h4 style={{ margin: '0 0 10px 0', color: '#666', fontSize: '0.9rem' }}>Asignación de Turnos</h4>
+
+              <div style={{ marginBottom: '10px' }}>
+                <label>Hora Cambio de Turno:</label>
+                <input
+                  type="time"
+                  value={horaCambioTurno}
+                  onChange={(e) => setHoraCambioTurno(e.target.value)}
+                  style={{ width: '100%' }}
+                />
+                <small style={{ display: 'block', color: '#888', marginTop: '2px', fontSize: '0.75rem' }}>
+                  Hora fin turno AM / inicio PM.
+                </small>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '0.85rem' }}>Guardia Mañana:</label>
+                  <select value={guardiaAMId} onChange={(e) => setguardiaAMId(e.target.value)} style={{ fontSize: '0.85rem' }}>
+                    <option value="">(Sin asignar)</option>
+                    {personalList.filter(p => p.role === 'guardia').map(g => (
+                      <option key={g.rut} value={g.rut}>{g.nombre} {g.apellido}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem' }}>Guardia Tarde:</label>
+                  <select value={guardiaPMId} onChange={(e) => setguardiaPMId(e.target.value)} style={{ fontSize: '0.85rem' }}>
+                    <option value="">(Sin asignar)</option>
+                    {personalList.filter(p => p.role === 'guardia').map(g => (
+                      <option key={g.rut} value={g.rut}>{g.nombre} {g.apellido}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
-            <div className="actions">
+
+            <div className="actions" style={{ marginTop: '20px' }}>
               <button type="submit" className="btn-primary">{editarId ? 'Guardar Cambios' : 'Añadir'}</button>
               <button type="button" onClick={resetFormulario} className="btn-secondary">Cancelar</button>
             </div>
@@ -302,7 +369,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
               <th>Ocupados/Cap</th>
               <th>Estado</th>
               <th>Horarios</th>
-              <th>Guardia</th>
+              <th>Guardias (AM/PM)</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -316,12 +383,31 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
                   <td>{b.bicicletasGuardadas} / {b.capacidad}</td>
                   <td><span className={`badge ${b.estado}`}>{b.estado}</span></td>
                   <td>{b.horaApertura && b.horaCierre ? `${b.horaApertura} - ${b.horaCierre}` : '24/7'}</td>
-                  <td>{b.guardiaAsignado ? `${b.guardiaAsignado.nombre}` : '-'}</td>
                   <td>
-                    <button className="btn-edit" onClick={() => handleEditClick(b)}>Editar</button>
-                    <button className="btn-primary" style={{ padding: '5px 10px', fontSize: '0.9rem', backgroundColor: '#6c757d' }}
+                    <div style={{ fontSize: '0.8rem', lineHeight: '1.4' }}>
+                      <div><strong>AM:</strong> {b.guardiaAM ? b.guardiaAM.nombre : '-'}</div>
+                      <div><strong>PM:</strong> {b.guardiaPM ? b.guardiaPM.nombre : '-'}</div>
+                      <div style={{ color: '#666', marginTop: '2px', borderTop: '1px dashed #ccc' }}>
+                        Cambio: {b.horaCambioTurno?.slice(0, 5) || '14:00'}
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <button
+                      className="btn-edit"
+                      onClick={() => handleEditClick(b)}
+                    >
+                      Editar
+                    </button>
+                    <button className="btn-primary" style={{ padding: '5px 10px', fontSize: '0.9rem', backgroundColor: '#6c757d', marginLeft: '5px' }}
                       onClick={() => handleVerQR(b)}>Ver QR</button>
-                    <button className="btn-delete" onClick={() => handleDeleteBicicletero(b.id)}>Eliminar</button>
+                    <button
+                      className="btn-delete"
+                      onClick={() => handleDeleteBicicletero(b)}
+                      style={{ marginLeft: '5px' }}
+                    >
+                      Eliminar
+                    </button>
                   </td>
                 </tr>
               ))
@@ -331,23 +417,38 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
           </tbody>
         </table>
       </div>
+
       {showQrModal && (
         <div className="modal-overlay" onClick={cerrarModal}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <button className="btn-close" onClick={cerrarModal}>×</button>
             <h3 style={{ marginTop: 0, color: '#2c3e50' }}>Código QR Bicicletero</h3>
             <p style={{ color: '#666' }}>{selectedBicicletero?.ubicacion}</p>
-
             <div className="qr-display-container">
               {qrUrl && <img src={qrUrl} alt="QR Code" className="qr-image" />}
             </div>
-
             <div className="modal-actions">
-              <button className="btn-primary" onClick={handleDescargarQR}>
-                ⬇ Descargar
-              </button>
-              <button className="btn-secondary" onClick={cerrarModal}>
-                Cerrar
+              <button className="btn-primary" onClick={handleDescargarQR}>⬇ Descargar</button>
+              <button className="btn-secondary" onClick={cerrarModal}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {errorModal.isOpen && (
+        <div className="modal-overlay" onClick={closeError}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', borderTop: '5px solid #e74c3c' }}>
+            <button className="btn-close" onClick={closeError}>×</button>
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <div style={{ fontSize: '50px', marginBottom: '15px' }}>⚠️</div>
+              <h3 style={{ color: '#e74c3c', margin: '0 0 10px 0' }}>Operación Denegada</h3>
+              <p style={{ fontSize: '1.1rem', color: '#555', lineHeight: '1.5' }}>
+                {errorModal.message}
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={closeError} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none' }}>
+                Entendido
               </button>
             </div>
           </div>

@@ -1,17 +1,42 @@
 import { AppDataSource } from "../config/configDb.js";
 import { Bicicletero } from "../entities/bicicletero.entity.js";
-import { RegistroUso } from "../entities/registroUso.entity.js";
-import { In, IsNull } from "typeorm";
+import { RegistroUso } from "../entities/registroUso.entity.js"; // Asegúrate de importar esto
+import { LessThan, MoreThan, IsNull, In } from "typeorm";
+import { Brackets } from "typeorm";
 
 const bicicleteroRepo = AppDataSource.getRepository(Bicicletero);
 const registroRepo = AppDataSource.getRepository(RegistroUso);
 
-// 1. Obtener los bicicleteros del guardia
-export async function obtenerMisBicicleteros(rutGuardia) {
-  return await bicicleteroRepo.find({
-    where: { guardiaAsignado: { rut: rutGuardia } },
-    relations: ["guardiaAsignado"], 
+// ... (Mantén tu función findBicicleterosByGuardia existente) ...
+export async function findBicicleterosByGuardia(guardiaRut) {
+  // 1. Buscamos TODOS los bicicleteros donde este usuario sea guardia (mañana O tarde)
+  const asignados = await bicicleteroRepo.createQueryBuilder("b")
+    .leftJoinAndSelect("b.guardiaAM", "gm")
+    .leftJoinAndSelect("b.guardiaPM", "gt")
+    .where("gm.rut = :rut", { rut: guardiaRut })
+    .orWhere("gt.rut = :rut", { rut: guardiaRut })
+    .getMany();
+
+  // 2. Filtramos en memoria según la hora actual y la hora de cambio de CADA bicicletero
+  const ahora = new Date();
+  const horaActualStr = `${ahora.getHours().toString().padStart(2, '0')}:${ahora.getMinutes().toString().padStart(2, '0')}:00`;
+
+  const bicicleterosActivos = asignados.filter(b => {
+    // Si no hay hora configurada, usamos 14:00 por defecto
+    const horaCorte = b.horaCambioTurno || "14:00:00"; 
+    
+    const esTurnoManana = horaActualStr < horaCorte;
+    
+    if (esTurnoManana) {
+        // Si es temprano, lo muestro SOLO si soy el guardia de la mañana
+        return b.guardiaAM?.rut === guardiaRut;
+    } else {
+        // Si es tarde, lo muestro SOLO si soy el guardia de la tarde
+        return b.guardiaPM?.rut === guardiaRut;
+    }
   });
+
+  return bicicleterosActivos;
 }
 
 // 2. Obtener solicitudes pendientes
