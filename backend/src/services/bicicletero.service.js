@@ -7,16 +7,25 @@ const userRepo = AppDataSource.getRepository(User);
 
 export async function AllBicicleteros() {
     return await bicicleteroRepo.find({
-        relations:["guardiaAsignado"],});
+        relations:["guardiaAM", "guardiaPM"],});
 }
 
 //crear bicicletero
 export async function CrearBicicletero(data) {
-    const {ubicacion, capacidad, estado, horaApertura, horaCierre, guardiaId, latitud, longitud}= data;
-    let guardia = null;
-    if(guardiaId){
-        guardia = await userRepo.findOneBy({rut: guardiaId, role:"guardia"});
-        if(!guardia){
+    const {ubicacion, capacidad, estado, horaApertura, horaCierre, horaCambioTurno, guardiaAMId, guardiaPMId, latitud, longitud}= data;
+    
+    let gAM = null;
+    let gPM = null;
+
+    if(guardiaAMId){
+        gAM = await userRepo.findOneBy({rut: guardiaAMId, role:"guardia"});
+        if(!gAM){
+            throw new Error("El guardia seleccionado no es valido");
+        }
+    }
+    if(guardiaPMId){
+        gPM = await userRepo.findOneBy({rut: guardiaPMId, role:"guardia"});
+        if(!gPM){
             throw new Error("El guardia seleccionado no es valido");
         }
     }
@@ -27,9 +36,11 @@ export async function CrearBicicletero(data) {
         estado,
         horaApertura: horaApertura,
         horaCierre: horaCierre,
+        horaCambioTurno: horaCambioTurno || "14:00:00",
         latitud,
         longitud,
-        guardiaAsignado: guardia,
+        guardiaAM: gAM,
+        guardiaPM: gPM
     });
 
     return await bicicleteroRepo.save(newBicicletero); 
@@ -45,16 +56,29 @@ export async function ActualizarBicicletero(id,data){
 
     //validar guardia (si cambia)
     let guardia = null;
-    const {guardiaId, ...updateData} = data;
+    const {guardiaAMId, guardiaPMId, horaCambioTurno, ...updateData} = data;
 
-    if(guardiaId){
-        guardia = await userRepo.findOneBy({rut: guardiaId, role:"guardia"});
-        if(!guardia){
-            throw new Error("El guardia seleccionado no es valido");
-        }
-        updateData.guardiaAsignado = guardia;
-    }else if (guardiaId === null || guardiaId ==="") {
-        updateData.guardiaAsignado= null;
+    //logica guardia mañana
+    if (guardiaAMId) {
+        const g = await userRepo.findOneBy({ rut: guardiaAMId, role: "guardia" });
+        if (!g) throw new Error("Guardia Mañana inválido");
+        bicicletero.guardiaAM = g;
+    } else if (guardiaAMId === "") {
+        bicicletero.guardiaAM = null;
+    }
+
+    //logica guardia tarde
+    if (guardiaPMId) {
+        const g = await userRepo.findOneBy({ rut: guardiaPMId, role: "guardia" });
+        if (!g) throw new Error("Guardia Tarde inválido");
+        bicicletero.guardiaPM = g;
+    } else if (guardiaPMId === "") {
+        bicicletero.guardiaPM = null;
+    }
+
+    //Actualizar hora de cambio
+    if(horaCambioTurno){
+        bicicletero.horaCambioTurno = horaCambioTurno;
     }
 
     //juntar datos

@@ -2,15 +2,17 @@
 
 import { AppDataSource } from "../config/configDb.js";
 import { User } from "../entities/user.entity.js";
+import { Bicicletero } from "../entities/bicicletero.entity.js"; 
 import bcrypt from "bcrypt";
+import { Brackets } from "typeorm";
 
 const userRepository = AppDataSource.getRepository(User);
+const bicicleteroRepo = AppDataSource.getRepository(Bicicletero); 
 
 // Servicio para crear un nuevo usuario
 export async function createUser(data) {
   const hashedPassword = await bcrypt.hash(data.password, 10);
 
-  // Objeto de datos a insertar
   const userData = {
     rut: data.rut, 
     nombre: data.nombre,
@@ -20,50 +22,70 @@ export async function createUser(data) {
     role: data.role || 'alumno'
   };
 
-  // CAMBIO: Usamos .insert() en lugar de .save()
-  // .insert() solo hace INSERT. Si la PK (rut) ya existe,
-  // fallará y lanzará el error '23505' que el controlador espera.
   await userRepository.insert(userData);
-
-  // Devolvemos los datos (sin la password)
   delete userData.password;
   return userData;
 }
 
-// Servicio para buscar por Email (para Login)
 export async function findUserByEmail(email) {
   return await userRepository.findOneBy({ email });
 }
 
-// Servicio para encontrar personal (guardias y admins)
 export async function EncontrarPersonal(){
   return await userRepository.find({
     where: [{role: "guardia"}, {role: "admin"}],
-    select: ["rut","nombre","apellido","email", "role"],
+    relations: ["bicicleterosAM", "bicicleterosPM"], 
+    select: {
+        rut: true,
+        nombre: true,
+        apellido: true,
+        email: true,
+        role: true
+    }
   });
 }
-// Servicio para encontrar por RUT
+
 export async function findUserByRut(rut) {
   return await userRepository.findOneBy({ rut });
 }
 
 // Servicio para actualizar usuario
 export async function updateUser(rut, data) {
+  // Validacion si guardia esta asignado a bicicletero
+  const bicicleterosAsignados = await bicicleteroRepo.count({
+    where:[
+      { guardiaAM: { rut: rut } },
+      { guardiaPM: { rut: rut } }
+    ]
+  });
+
+  if (bicicleterosAsignados > 0) {
+    throw new Error("No se puede modificar guardia asignado a bicicleteros.");
+  }
+
   const user = await userRepository.findOneBy({ rut });
   if (!user) return null;
-  //cambio de contraseña
+
   if(data.password && data.password.trim() !== ''){
     data.password = await bcrypt.hash(data.password, 10);
   } else {
-    // No actualizar la contraseña si no se proporciona
     delete data.password;
   }
-  //actualizar campos
+  
   await userRepository.update({ rut: rut }, data);
   return await userRepository.findOneBy({ rut });
 } 
 
 // Servicio para eliminar usuario
 export async function deleteUser(rut) {
+   // Validacion si guardia esta asignado a bicicletero
+  const bicicleterosAsignados = await bicicleteroRepo.count({
+    where: { guardiaAsignado: { rut: rut } }
+  });
+
+  if (bicicleterosAsignados > 0) {
+    throw new Error("No se puede eliminar guardia asignado a bicicleteros.");
+  }
+
   return await userRepository.delete({ rut });
 }
