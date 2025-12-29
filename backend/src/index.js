@@ -3,6 +3,8 @@ import express from "express";
 import morgan from "morgan";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
+import https from "https";
 import { fileURLToPath } from 'url';
 import { connectDB } from "./config/configDb.js";
 import { routerApi } from "./routes/index.routes.js";
@@ -27,9 +29,28 @@ connectDB()
   .then(() => {
     routerApi(app);
 
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Servidor iniciado en http://localhost:${PORT}`);
-    });
+    // Intentar cargar certificados SSL para HTTPS
+    try {
+      const httpsOptions = {
+        key: fs.readFileSync(path.join(__dirname, '../../frontend/key.pem')),
+        cert: fs.readFileSync(path.join(__dirname, '../../frontend/cert.pem'))
+      };
+
+      // Iniciar servidor HTTPS
+      https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
+        console.log(`🔐 Servidor HTTPS iniciado en https://localhost:${PORT}`);
+      });
+
+    } catch (error) {
+      console.log('⚠️ No se encontraron certificados SSL, iniciando en modo HTTP.');
+      console.log('Error:', error.message);
+
+      // Fallback a HTTP si fallan los certificados
+      app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Servidor HTTP iniciado en http://localhost:${PORT}`);
+      });
+    }
+
   })
   .catch((error) => {
     console.log("Error al iniciar el servidor:", error);

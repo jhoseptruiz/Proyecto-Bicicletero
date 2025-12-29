@@ -35,6 +35,11 @@ export async function findBicicleterosByGuardia(guardiaRut) {
 
 // 2. Obtener solicitudes pendientes
 export async function obtenerSolicitudesPendientes(bicicleteroId) {
+  const bicicletero = await bicicleteroRepo.findOneBy({ id: bicicleteroId });
+  if (!bicicletero) {
+    throw new Error("Bicicletero no encontrado");
+  }
+
   return await registroRepo.find({
     where: {
       bicicletero: { id: bicicleteroId },

@@ -27,6 +27,9 @@ export async function getSolicitudes(req, res) {
     const solicitudes = await obtenerSolicitudesPendientes(id);
     handleSuccess(res, 200, "Solicitudes obtenidas", solicitudes);
   } catch (error) {
+    if (error.message.includes("no encontrado")) {
+      return handleErrorClient(res, 404, error.message);
+    }
     handleErrorServer(res, 500, "Error al obtener solicitudes", error.message);
   }
 }
