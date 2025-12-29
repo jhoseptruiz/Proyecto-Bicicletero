@@ -34,16 +34,25 @@ export async function findMisBicicletas(usuarioRut) {
 
   // Mapeamos para indicar si está guardada y DÓNDE
   return bicis.map(b => {
-    const usoActivo = b.usos?.find(u => u.fechaSalida === null);
+    // --- CORRECCIÓN AQUÍ ---
+    // Antes: const usoActivo = b.usos?.find(u => u.fechaSalida === null);
+    
+    // Ahora: Solo consideramos que está "Adentro" si el estado es 'pendiente', 'activo' o 'solicitando_retiro'.
+    // Si está 'rechazado', lo ignoramos (aunque fechaSalida sea null), para que puedas volver a intentar.
+    const usoActivo = b.usos?.find(u => 
+      u.fechaSalida === null && 
+      ["pendiente", "activo", "solicitando_retiro"].includes(u.estado)
+    );
+
     return {
       ...b,
-      usos: undefined,
+      usos: undefined, // Limpiamos el array de usos para no enviar basura al frontend
       estadoActual: usoActivo ? {
         estaAdentro: true,
         bicicleteroId: usoActivo.bicicletero.id,
-        ubicacion: usoActivo.bicicletero.ubicacion // Para mostrar "En Biblioteca", etc.
+        ubicacion: usoActivo.bicicletero.ubicacion
       } : {
-        estaAdentro: false
+        estaAdentro: false // Si fue rechazada, usoActivo será undefined y caerá aquí (Correcto)
       }
     };
   });

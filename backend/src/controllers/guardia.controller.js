@@ -1,123 +1,112 @@
 import { 
-  findBicicleterosByGuardia, 
-  obtenerSolicitudesPendientes, 
-  aprobarIngreso, 
+  obtenerMisBicicleteros,
+  obtenerSolicitudesPendientes,
+  aprobarIngreso,
   rechazarIngreso,
-  obtenerRegistrosActivos,
+  obtenerActivos,
   finalizarEstadia,
-  modificarCasillero,
+  modificarUbicacion,
   obtenerResumenGlobal
 } from "../services/guardia.service.js";
 import { handleSuccess, handleErrorServer, handleErrorClient } from "../Handlers/responseHandlers.js";
 
-/**
- * Obtiene los bicicleteros asignados al guardia actualmente logueado.
- */
+// 1. Mis Bicicleteros
 export async function getMisBicicleteros(req, res) {
   try {
-    const rutGuardia = req.user.sub; // Viene del token
-    const bicicleteros = await findBicicleterosByGuardia(rutGuardia);
-    handleSuccess(res, 200, "Bicicleteros asignados al guardia", bicicleteros);
+    const rutGuardia = req.user.sub;
+    const bicicleteros = await obtenerMisBicicleteros(rutGuardia);
+    handleSuccess(res, 200, "Bicicleteros obtenidos", bicicleteros);
   } catch (error) {
     handleErrorServer(res, 500, "Error al obtener bicicleteros", error.message);
   }
 }
 
-/**
- * Obtiene las solicitudes pendientes de ingreso para un bicicletero.
- */
+// 2. Solicitudes
 export async function getSolicitudes(req, res) {
   try {
-    const { bicicleteroId } = req.params;
-    const solicitudes = await obtenerSolicitudesPendientes(bicicleteroId);
-    handleSuccess(res, 200, "Solicitudes pendientes obtenidas", solicitudes);
+    const { bicicleteroId } = req.params; // OJO: Asegúrate que en tu ruta sea :bicicleteroId o :id
+    // Si tu ruta es router.get('/:id/solicitudes'), usa req.params.id
+    const id = req.params.id || req.params.bicicleteroId; 
+    
+    const solicitudes = await obtenerSolicitudesPendientes(id);
+    handleSuccess(res, 200, "Solicitudes obtenidas", solicitudes);
   } catch (error) {
     handleErrorServer(res, 500, "Error al obtener solicitudes", error.message);
   }
 }
 
-/**
- * Aprueba el ingreso asignando un casillero físico.
- */
+// 3. Aprobar
 export async function postAprobarIngreso(req, res) {
   try {
-    const { id } = req.params; // ID del registro (solicitud)
-    const { casillero } = req.body; // El numero que escribe el guardia
+    const { id } = req.params;
+    const { casillero } = req.body;
     const rutGuardia = req.user.sub;
 
-    if (!casillero) return handleErrorClient(res, 400, "El número de casillero es obligatorio");
+    if (!casillero) return handleErrorClient(res, 400, "Falta casillero");
 
     const registro = await aprobarIngreso(id, casillero, rutGuardia);
-    handleSuccess(res, 200, "Ingreso aprobado exitosamente", registro);
+    handleSuccess(res, 200, "Ingreso aprobado", registro);
   } catch (error) {
-    console.error("Detalle del error:", error); // Esto ayuda a verlo en la terminal
-    handleErrorServer(res, 400, error.message, error.message);
+    handleErrorClient(res, 400, error.message);
   }
 }
 
-/**
- * Rechaza una solicitud de ingreso.
- */
+// 4. Rechazar
 export async function postRechazarIngreso(req, res) {
   try {
     const { id } = req.params;
     const { motivo } = req.body;
     const registro = await rechazarIngreso(id, motivo);
-    handleSuccess(res, 200, "Solicitud rechazada", registro);
+    handleSuccess(res, 200, "Rechazado", registro);
   } catch (error) {
-    handleErrorServer(res, 500, "Error al rechazar solicitud", error.message);
+    handleErrorServer(res, 500, "Error al rechazar", error.message);
   }
 }
 
-/**
- * Obtiene las bicicletas actualmente guardadas (activas).
- */
+// 5. Activos (En custodia)
 export async function getActivos(req, res) {
-    try {
-        const { bicicleteroId } = req.params;
-        const activos = await obtenerRegistrosActivos(bicicleteroId);
-        handleSuccess(res, 200, "Bicicletas activas obtenidas", activos);
-    } catch (error) {
-        handleErrorServer(res, 500, "Error al obtener activos", error.message);
-    }
+  try {
+    const id = req.params.id || req.params.bicicleteroId;
+    const activos = await obtenerActivos(id);
+    handleSuccess(res, 200, "Activos obtenidos", activos);
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al obtener activos", error.message);
+  }
 }
 
-/**
- * Finaliza la estadía (El alumno retira la bicicleta).
- */
+// 6. Finalizar (Salida)
 export async function postFinalizarSalida(req, res) {
-    try {
-        const { id } = req.params; // ID del registro
-        const resultado = await finalizarEstadia(id);
-        handleSuccess(res, 200, "Salida registrada exitosamente", resultado);
-    } catch (error) {
-        handleErrorServer(res, 500, "Error al finalizar salida", error.message);
-    }
+  try {
+    const { id } = req.params;
+    const resultado = await finalizarEstadia(id);
+    handleSuccess(res, 200, "Salida registrada", resultado);
+  } catch (error) {
+    handleErrorServer(res, 500, "Error al finalizar", error.message);
+  }
 }
 
-/**
- * Modifica la ubicación de una bicicleta ya guardada.
- */
+// 7. Modificar Ubicación
 export async function putModificarUbicacion(req, res) {
-    try {
-        const { id } = req.params; // ID del registro
-        const { nuevoCasillero } = req.body;
-        const resultado = await modificarCasillero(id, nuevoCasillero);
-        handleSuccess(res, 200, "Ubicación modificada exitosamente", resultado);
-    } catch (error) {
-        handleErrorServer(res, 400, "Error al modificar ubicación", error.message);
-    }
+  try {
+    const { id } = req.params;
+    const { casillero } = req.body; // El frontend suele mandar 'casillero' o 'nuevoCasillero', revisa esto
+    // Asumiremos que mandas 'casillero' en el body. Si mandas 'nuevoCasillero', cámbialo aquí.
+    const casilleroFinal = casillero || req.body.nuevoCasillero;
+
+    const resultado = await modificarUbicacion(id, casilleroFinal);
+    handleSuccess(res, 200, "Ubicación modificada", resultado);
+  } catch (error) {
+    handleErrorServer(res, 400, "Error al modificar", error.message);
+  }
 }
 
-/**
- * Endpoint para polling global (contadores de todos los bicicleteros)
- */
+// 8. Resumen Global
 export async function getResumenSolicitudes(req, res) {
   try {
     const rutGuardia = req.user.sub;
     const resumen = await obtenerResumenGlobal(rutGuardia);
-    handleSuccess(res, 200, "Resumen global obtenido", resumen);
+    handleSuccess(res, 200, "Resumen obtenido", resumen);
   } catch (error) {
-    handleErrorServer(res, 500, "Error al obtener resumen", error.message);
+    handleErrorServer(res, 500, "Error resumen", error.message);
   }
 }

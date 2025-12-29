@@ -17,7 +17,63 @@ function Scanner({ alCerrar, alIrAlPerfil, action }) {
   const [mensaje, setMensaje] = useState(null);
   const [expectedId, setExpectedId] = useState(null);
 
-  // ...
+  // Helper para distancia (Haversine simple)
+  const calcularDistancia = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // Radio tierra (metros)
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const verificarCondiciones = (detalles, userLat, userLng) => {
+    // 1. Estado Operativo
+    if (detalles.estado && detalles.estado !== 'operativo') {
+      throw new Error(`Este bicicletero está ${detalles.estado} (No operativo).`);
+    }
+
+    // 2. Horario
+    if (detalles.horaApertura && detalles.horaCierre) {
+      const ahora = new Date();
+      const [hA, mA] = detalles.horaApertura.split(':');
+      const [hC, mC] = detalles.horaCierre.split(':');
+      const minutosActual = ahora.getHours() * 60 + ahora.getMinutes();
+      const minutosApertura = parseInt(hA) * 60 + parseInt(mA);
+      const minutosCierre = parseInt(hC) * 60 + parseInt(mC);
+
+      if (minutosActual < minutosApertura || minutosActual > minutosCierre) {
+        throw new Error(`El bicicletero está cerrado. Horario: ${detalles.horaApertura} - ${detalles.horaCierre}`);
+      }
+    }
+
+    // 3. Distancia (50 metros)
+    if (detalles.latitud && detalles.longitud) {
+      const latBici = parseFloat(detalles.latitud);
+      const lngBici = parseFloat(detalles.longitud);
+
+      const dist = calcularDistancia(userLat, userLng, latBici, lngBici);
+
+      if (dist > 50) {
+        throw new Error(`Estás demasiado lejos (${Math.round(dist)}m). Acércate al bicicletero.`);
+      }
+    }
+  };
+
+  const scannerRef = useRef(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    cargarBicicletas();
+
+    if (location.state?.preSelectedBicicletero) {
+      handlePreSelected(location.state.preSelectedBicicletero);
+    } else {
+      return () => stopScanner();
+    }
+  }, []);
 
   const handlePreSelected = (bicicletero) => {
     setExpectedId(bicicletero.id);
@@ -25,7 +81,39 @@ function Scanner({ alCerrar, alIrAlPerfil, action }) {
     startScanner();
   };
 
-  // ...
+  const cargarBicicletas = async () => {
+    try {
+      const resp = await getMisBicicletas();
+      setBicicletas(resp.data || resp || []);
+    } catch (error) {
+      console.error("Error cargando bicis", error);
+      setMensaje({ tipo: 'error', texto: "Error cargando bicicletas." });
+    }
+  };
+
+  const startScanner = () => {
+    setStep('SCANNING');
+    setContextData(null);
+
+    setTimeout(() => {
+      if (!document.getElementById("reader")) return;
+
+      const scanner = new Html5QrcodeScanner(
+        "reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        false
+      );
+      scannerRef.current = scanner;
+      scanner.render(onScanSuccess, onScanFailure);
+    }, 100);
+  };
+
+  const stopScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.clear().catch(console.error);
+      scannerRef.current = null;
+    }
+  };
 
   const onScanSuccess = async (decodedText) => {
     stopScanner();
@@ -35,16 +123,21 @@ function Scanner({ alCerrar, alIrAlPerfil, action }) {
     try {
       // 1. Parsear JSON
       let datosQr;
-      try { datosQr = JSON.parse(decodedText); }
-      catch (e) { throw new Error("Código QR con formato inválido."); }
-
-      // 2. Validar estructura
-      if (!datosQr.id || datosQr.tipo !== 'bicicletero_ubicacion') {
-        throw new Error("QR desconocido. Usa solo QRs de bicicleteros oficiales.");
+      try {
+        datosQr = JSON.parse(decodedText);
+      } catch (e) {
+        // Retrocompatibilidad simple
+        if (!isNaN(decodedText)) {
+          datosQr = { id: decodedText, tipo: 'bicicletero_ubicacion' };
+        } else {
+          throw new Error("Código QR con formato inválido.");
+        }
       }
 
-      // ...
-
+      // 2. Validar estructura
+      if (!datosQr.id) {
+        throw new Error("QR desconocido. Usa solo QRs de bicicleteros oficiales.");
+      }
 
       // 3. Validar coincidencia con Mapa (si vino del mapa)
       if (expectedId && parseInt(datosQr.id) !== parseInt(expectedId)) {
@@ -88,19 +181,16 @@ function Scanner({ alCerrar, alIrAlPerfil, action }) {
           let errorMsg = "No pudimos obtener tu ubicación.";
           switch (gpsError.code) {
             case gpsError.PERMISSION_DENIED:
-              errorMsg = "❌ Permiso de GPS denegado. Actívalo en el navegador.";
+              errorMsg = "❌ Permiso de GPS denegado.";
               break;
             case gpsError.POSITION_UNAVAILABLE:
               errorMsg = "📡 Señal GPS débil o no disponible.";
-              if (!window.isSecureContext) {
-                errorMsg += " (Nota: El GPS requiere HTTPS o Localhost).";
-              }
               break;
             case gpsError.TIMEOUT:
-              errorMsg = "⌛ El GPS tardó demasiado en responder.";
+              errorMsg = "⌛ El GPS tardó demasiado.";
               break;
             default:
-              errorMsg = `Error GPS desconocido: ${gpsError.message}`;
+              errorMsg = `Error GPS: ${gpsError.message}`;
           }
           setMensaje({ tipo: 'error', texto: errorMsg });
           setStep('WAITING');
@@ -125,15 +215,17 @@ function Scanner({ alCerrar, alIrAlPerfil, action }) {
       return;
     }
 
+    // Determinamos la acción explícita para el backend
+    const tipoAccion = actionMode === 'INGRESAR' ? 'ingreso' : 'salida';
+
     setStep('PROCESSING');
     setMensaje({ tipo: 'info', texto: "Procesando solicitud con el servidor..." });
 
     try {
-      // CAMBIO AQUÍ: Usamos contextData.id en lugar de contextData.qrRaw
       const { id, lat, lng } = contextData;
 
-      // Enviamos el ID (ej: 15) como primer parámetro
-      const res = await scanQr(id, lat, lng, selectedBicicleta);
+      // Enviamos el ID y la ACCIÓN
+      const res = await scanQr(id, lat, lng, selectedBicicleta, tipoAccion);
 
       setMensaje({ tipo: 'success', texto: res.message || "Operación exitosa" });
       setStep('RESULT');
@@ -144,9 +236,6 @@ function Scanner({ alCerrar, alIrAlPerfil, action }) {
     }
   };
 
-
-
-  // ... (Resetear actionMode al llegar a DECIDING en onScanSuccess) ...
 
   const renderDeciding = () => {
     if (!contextData) return null;
@@ -273,8 +362,8 @@ function Scanner({ alCerrar, alIrAlPerfil, action }) {
 
       {step === 'WAITING' && (
         <div style={{ textAlign: 'center' }}>
-          <h2>¿Listo para chequear?</h2>
-          <p>Escanea el código QR del bicicletero.</p>
+          <h2>Scanner QR</h2>
+          <p>Acércate al bicicletero y escanea el código.</p>
           <button onClick={startScanner} style={{ padding: '15px 30px', fontSize: '18px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '50px', cursor: 'pointer' }}>
             📷 Escanear QR
           </button>
