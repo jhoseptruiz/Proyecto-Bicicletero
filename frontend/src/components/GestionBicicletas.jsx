@@ -39,7 +39,7 @@ function GestionBicicletas() {
     }
   };
 
-  // --- Lógica de Creación ---
+  // Lógica de Creación
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -56,7 +56,25 @@ function GestionBicicletas() {
       return;
     }
     const formData = new FormData();
-    formData.append('marca', marca);
+
+    // Validaciones Frontend
+    const marcaRegex = /^[a-zA-Z0-9\sñÑáéíóúÁÉÍÓÚ\-\.]+$/;
+    if (!marcaRegex.test(marca)) {
+      setFormError('La marca contiene caracteres inválidos. Solo letras, números y guiones.');
+      return;
+    }
+    if (marca.length > 50) {
+      setFormError('El nombre de la marca es muy largo (máx 50 caracteres).');
+      return;
+    }
+
+    // Validar archivo
+    if (fotoFile.size > 5 * 1024 * 1024) { // 5MB
+      setFormError('La imagen es muy pesada (máx 5MB).');
+      return;
+    }
+
+    formData.append('marca', marca.trim());
     formData.append('foto', fotoFile);
     try {
       await crearBicicleta(formData);
@@ -70,7 +88,7 @@ function GestionBicicletas() {
     }
   };
 
-  // --- Lógica de Eliminación ---
+  // Lógica de Eliminación
   const handleDelete = async (bicicletaId) => {
     if (window.confirm("¿Estás seguro de que quieres eliminar esta bicicleta? Esta acción no se puede deshacer.")) {
       try {
@@ -82,7 +100,7 @@ function GestionBicicletas() {
     }
   };
 
-  // --- Lógica de Edición ---
+  // Lógica de Edición
   const openEditModal = (bicicleta) => {
     setEditingBike(bicicleta);
     setEditMarca(bicicleta.marca);

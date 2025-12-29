@@ -1,68 +1,72 @@
-// Proyecto-Bicicletero/frontend/src/pages/PaginaRegistro.jsx
-
-import React, {useState} from 'react';
-import {useNavigate, Link} from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { register } from '../services/auth.service.js';
 
-function PaginaRegistro(){
-    
+function PaginaRegistro() {
+
     // --- Estados del Formulario ---
     const [nombre, setNombre] = useState('');
     const [apellido, setApellido] = useState('');
-    const [rut, setRut] = useState(''); 
+    const [rut, setRut] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    
+
     // --- Estados de UI (Feedback) ---
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    
+
     // --- Hooks ---
     const navigate = useNavigate();
 
     // --- Manejador del Submit ---
-    const handleSubmit = async (e)=>{
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setSuccess('');
 
-        try{
+        try {
+            // Validaciones Frontend
+            const emailRegex = /^[a-zA-Z0-9._-]+@(alumnos\.ubiobio\.cl|ubiobio\.cl)$/;
+            if (!emailRegex.test(email)) {
+                throw new Error("El correo debe ser institucional (@alumnos.ubiobio.cl o @ubiobio.cl) y sin caracteres especiales extraños.");
+            }
+
             // Llamando al servicio de registro
             const data = await register(nombre, apellido, rut, email, password);
 
             setSuccess('¡Registro exitoso! Redirigiendo al login..');
-            
-            // Redirigiendo al login
-            setTimeout(()=>{
-                navigate('/login');
-            },2000);
 
-        } catch(err){
+            // Redirigiendo al login
+            setTimeout(() => {
+                navigate('/login');
+            }, 2000);
+
+        } catch (err) {
             // Mostrar error
             setError(err.message);
         }
     };
-    
+
     // --- Renderizado del Componente ---
-    return(
+    return (
         <div>
             <h2>Registro de usuario</h2>
             <form onSubmit={handleSubmit}>
                 <div>
                     <label>Nombre: </label>
                     <input
-                    type = "text"
-                    value ={nombre}
-                    onChange={(e) => setNombre(e.target.value)}
-                    required>
+                        type="text"
+                        value={nombre}
+                        onChange={(e) => setNombre(e.target.value)}
+                        required>
                     </input>
                 </div>
                 <div>
                     <label>Apellido: </label>
                     <input
-                        type = "text"
-                        value= {apellido}
-                        onChange= {(e)=>setApellido(e.target.value)}
+                        type="text"
+                        value={apellido}
+                        onChange={(e) => setApellido(e.target.value)}
                         required>
                     </input>
                 </div>
@@ -70,21 +74,21 @@ function PaginaRegistro(){
                 <div>
                     <label>RUT: </label>
                     <input
-                        type = "text"
-                        value= {rut}
-                        onChange= {(e) => setRut(e.target.value)}
-                        placeholder = "Ej: 12345678-9"
+                        type="text"
+                        value={rut}
+                        onChange={(e) => setRut(e.target.value)}
+                        placeholder="Ej: 12345678-9"
                         required>
                     </input>
                 </div>
-                
+
                 <div>
                     <label>Email: </label>
                     <input
-                        type= "email"
-                        value= {email}
-                        onChange= {(e) => setEmail(e.target.value)}
-                        placeholder = "ej: nombre@alumnos.ubiobio.cl/ @ubiobio.cl"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="ej: nombre@alumnos.ubiobio.cl/ @ubiobio.cl"
                         required>
                     </input>
                 </div>
@@ -93,19 +97,19 @@ function PaginaRegistro(){
                     <input
                         type="password"
                         value={password}
-                        onChange={(e)=>setPassword(e.target.value)}
+                        onChange={(e) => setPassword(e.target.value)}
                         required>
                     </input>
                 </div>
                 <button type="submit">Registrarse</button>
             </form>
-            
+
             {/* Mensajes de feedback */}
-            {error && <p style={{color: 'red'}}>{error}</p>}
-            {success && <p style={{color: 'green'}}>{success}</p>}
-            
+            {error && <p style={{ color: 'red' }}>{error}</p>}
+            {success && <p style={{ color: 'green' }}>{success}</p>}
+
             <p>
-                ¿Ya tienes una cuenta? <Link to = "/login">Inicia sesión aqui</Link>
+                ¿Ya tienes una cuenta? <Link to="/login">Inicia sesión aqui</Link>
             </p>
         </div>
     );

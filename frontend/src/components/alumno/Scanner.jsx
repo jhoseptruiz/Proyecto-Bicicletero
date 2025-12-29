@@ -4,7 +4,7 @@ import { getMisBicicletas } from '../../services/bicicleta.service';
 import { scanQr, validateQr, obtenerEstadoBicicletero } from '../../services/checkin.service';
 import { useLocation } from 'react-router-dom';
 
-function Scanner({ alCerrar, alIrAlPerfil, action }) {
+function Scanner({ alCerrar, alIrAlPerfil, action, bicicletaId }) {
   // Estados de Flujo: WAITING, SCANNING, DECIDING, PROCESSING, RESULT
   const [step, setStep] = useState('WAITING');
 
@@ -13,7 +13,7 @@ function Scanner({ alCerrar, alIrAlPerfil, action }) {
 
   const [bicicletas, setBicicletas] = useState([]);
   const [contextData, setContextData] = useState(null);
-  const [selectedBicicleta, setSelectedBicicleta] = useState('');
+  const [selectedBicicleta, setSelectedBicicleta] = useState(bicicletaId || '');
   const [mensaje, setMensaje] = useState(null);
   const [expectedId, setExpectedId] = useState(null);
 

@@ -12,16 +12,16 @@ function normalizeRut(rut) {
   if (!rut || typeof rut !== 'string') {
     return null;
   }
-  
+
   let cleanRut = rut.replace(/[\.\-]/g, ""); // Quita puntos y guiones
-  
+
   if (cleanRut.length < 2) {
     return null; // RUT inválido
   }
-  
+
   const body = cleanRut.slice(0, -1);
   const dv = cleanRut.slice(-1).toUpperCase(); // Dígito verificador
-  
+
   return `${body}-${dv}`; // Formato: 12345678-K
 }
 
@@ -31,12 +31,12 @@ function normalizeRut(rut) {
 export async function login(req, res) {
   try {
     const { email, password } = req.body;
-    
+
     // Validaciones
     if (!email || !password) {
       return handleErrorClient(res, 400, "Email y contraseña son requeridos");
     }
-    
+
     // Lógica de login
     const data = await loginUser(email, password);
     handleSuccess(res, 200, "Login exitoso", data);
@@ -47,7 +47,7 @@ export async function login(req, res) {
 }
 
 export async function register(req, res) {
-  
+
   // Se definen aquí para que sean visibles en el bloque catch
   const data = req.body;
   let normalizedRut;
@@ -59,10 +59,15 @@ export async function register(req, res) {
     }
 
     // 2. Validación de dominio UBB
-    const allowedDomains = ["@alumnos.ubiobio.cl","@ubiobio.cl"];
-    const emailDomain = data.email.substring(data.email.lastIndexOf('@'));
-    if(!allowedDomains.includes(emailDomain)){
-      return handleErrorClient(res, 400, "El correo debe pertenecer al dominio de la Univerdad del Bio-Bio ");
+    // 2. Validación de Formato de Email y Texto seguro
+    const emailRegex = /^[a-zA-Z0-9._-]+@(alumnos\.ubiobio\.cl|ubiobio\.cl)$/;
+    if (!emailRegex.test(data.email)) {
+      return handleErrorClient(res, 400, "El correo no tiene un formato válido o no pertenece a la Universidad del Bio-Bio.");
+    }
+
+    const nameRegex = /^[a-zA-ZñÑáéíóúÁÉÍÓÚ\s]+$/;
+    if (!nameRegex.test(data.nombre) || !nameRegex.test(data.apellido)) {
+      return handleErrorClient(res, 400, "El nombre y apellido solo pueden contener letras.");
     }
 
     // 3. Normalización de RUT
@@ -70,35 +75,35 @@ export async function register(req, res) {
     if (!normalizedRut) {
       return handleErrorClient(res, 400, "El formato del RUT no es válido");
     }
-    
+
     const userData = {
       ...data,
       rut: normalizedRut
     };
-    
+
     // 4. Creación de usuario (usando .insert() del servicio)
     const newUser = await createUser(userData);
-    
-    delete newUser.password; 
+
+    delete newUser.password;
     handleSuccess(res, 201, "Usuario registrado exitosamente", newUser);
 
   } catch (error) {
-    
+
     // 5. Manejo de errores de duplicidad
     if (error.code === '23505') { // '23505' = Unique Violation
-      
+
       const errorDetail = error.detail || "";
       const errorConstraint = error.constraint || "";
 
       // Comprobamos si el detalle del error incluye el RUT normalizado
       // o si el nombre de la "constraint" violada es la del RUT.
-      if (errorDetail.includes(normalizedRut) || errorConstraint.includes('users_rut_pk')) { 
+      if (errorDetail.includes(normalizedRut) || errorConstraint.includes('users_rut_pk')) {
         handleErrorClient(res, 409, "El RUT ya está registrado");
-      
-      // Hacemos lo mismo para el email
+
+        // Hacemos lo mismo para el email
       } else if (errorDetail.includes(data.email) || errorConstraint.includes('users_email_key')) {
         handleErrorClient(res, 409, "El email ya está registrado");
-      
+
       } else {
         // Fallback genérico si no podemos identificar la columna
         handleErrorClient(res, 409, "El RUT o Email ya están registrados");

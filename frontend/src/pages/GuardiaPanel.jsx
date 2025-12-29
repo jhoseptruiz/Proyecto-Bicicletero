@@ -103,7 +103,7 @@ const GuardiaPanel = () => {
     });
   };
 
-  // --- 1. DETECTOR DE SOLICITUDES LOCALES (CORREGIDO) ---
+  // Detector de Solicitudes Locales
   useEffect(() => {
     if (loading) return; // Evitar falsas alarmas al cargar
 
@@ -144,7 +144,7 @@ const GuardiaPanel = () => {
     prevSolicitudesIds.current = new Set(solicitudes.map(s => s.id));
   }, [solicitudes, loading]);
 
-  // --- 2. DETECTOR DE ALERTAS GLOBALES (CORREGIDO) ---
+  // Detector de Alertas Globales
   useEffect(() => {
     if (loading) return;
     if (isFirstLoad.current) {

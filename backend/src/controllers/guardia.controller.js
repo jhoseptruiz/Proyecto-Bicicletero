@@ -1,5 +1,5 @@
-import { 
-  obtenerMisBicicleteros,
+import {
+  findBicicleterosByGuardia,
   obtenerSolicitudesPendientes,
   aprobarIngreso,
   rechazarIngreso,
@@ -10,24 +10,22 @@ import {
 } from "../services/guardia.service.js";
 import { handleSuccess, handleErrorServer, handleErrorClient } from "../Handlers/responseHandlers.js";
 
-// 1. Mis Bicicleteros
+// Obtener bicicleteros del guardia
 export async function getMisBicicleteros(req, res) {
   try {
     const rutGuardia = req.user.sub;
-    const bicicleteros = await obtenerMisBicicleteros(rutGuardia);
+    const bicicleteros = await findBicicleterosByGuardia(rutGuardia);
     handleSuccess(res, 200, "Bicicleteros obtenidos", bicicleteros);
   } catch (error) {
     handleErrorServer(res, 500, "Error al obtener bicicleteros", error.message);
   }
 }
 
-// 2. Solicitudes
+// Obtener solicitudes pendientes
 export async function getSolicitudes(req, res) {
   try {
-    const { bicicleteroId } = req.params; // OJO: Asegúrate que en tu ruta sea :bicicleteroId o :id
-    // Si tu ruta es router.get('/:id/solicitudes'), usa req.params.id
-    const id = req.params.id || req.params.bicicleteroId; 
-    
+    const id = req.params.id || req.params.bicicleteroId;
+
     const solicitudes = await obtenerSolicitudesPendientes(id);
     handleSuccess(res, 200, "Solicitudes obtenidas", solicitudes);
   } catch (error) {
@@ -35,7 +33,7 @@ export async function getSolicitudes(req, res) {
   }
 }
 
-// 3. Aprobar
+// Aprobar ingreso
 export async function postAprobarIngreso(req, res) {
   try {
     const { id } = req.params;
@@ -51,7 +49,7 @@ export async function postAprobarIngreso(req, res) {
   }
 }
 
-// 4. Rechazar
+// Rechazar ingreso
 export async function postRechazarIngreso(req, res) {
   try {
     const { id } = req.params;
@@ -63,7 +61,7 @@ export async function postRechazarIngreso(req, res) {
   }
 }
 
-// 5. Activos (En custodia)
+// Obtener activos en custodia
 export async function getActivos(req, res) {
   try {
     const id = req.params.id || req.params.bicicleteroId;
@@ -74,7 +72,7 @@ export async function getActivos(req, res) {
   }
 }
 
-// 6. Finalizar (Salida)
+// Finalizar estadia
 export async function postFinalizarSalida(req, res) {
   try {
     const { id } = req.params;
@@ -85,12 +83,10 @@ export async function postFinalizarSalida(req, res) {
   }
 }
 
-// 7. Modificar Ubicación
+// Modificar ubicación
 export async function putModificarUbicacion(req, res) {
   try {
     const { id } = req.params;
-    const { casillero } = req.body; // El frontend suele mandar 'casillero' o 'nuevoCasillero', revisa esto
-    // Asumiremos que mandas 'casillero' en el body. Si mandas 'nuevoCasillero', cámbialo aquí.
     const casilleroFinal = casillero || req.body.nuevoCasillero;
 
     const resultado = await modificarUbicacion(id, casilleroFinal);
@@ -100,7 +96,7 @@ export async function putModificarUbicacion(req, res) {
   }
 }
 
-// 8. Resumen Global
+// Obtener resumen global
 export async function getResumenSolicitudes(req, res) {
   try {
     const rutGuardia = req.user.sub;

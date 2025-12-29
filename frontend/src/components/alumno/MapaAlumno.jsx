@@ -23,8 +23,7 @@ const MapaAlumno = ({ onMarkerClick }) => {
             try {
                 const response = await getMapData();
                 if (response.data) {
-                    // --- CAMBIO AQUÍ: FILTRAR ---
-                    // Excluimos los que estén en MANTENIMIENTO (que incluye "Fuera de Servicio")
+                    // Excluimos los que estén en MANTENIMIENTO
                     const bicicleterosVisibles = response.data.filter(b => b.estado !== 'MANTENIMIENTO');
 
                     setBicicleteros(bicicleterosVisibles);
@@ -38,10 +37,8 @@ const MapaAlumno = ({ onMarkerClick }) => {
                             }
                         });
 
-                        // Lógica de Contexto: Si todos los puntos están dentro del campus UBB,
-                        // forzamos la vista centrada institucional.
-                        // Bounds aprox: Lng -73.020~-73.005, Lat -36.830~-36.815
-                        const UBB_CENTER = [-73.0134, -36.8222]; // Biblioteca Central
+                        // Si está dentro del campus, centrar
+                        const UBB_CENTER = [-73.0134, -36.8222];
                         const isInsideCampus = (
                             bounds.getWest() > -73.020 && bounds.getEast() < -73.005 &&
                             bounds.getSouth() > -36.830 && bounds.getNorth() < -36.815

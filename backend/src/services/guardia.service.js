@@ -23,16 +23,16 @@ export async function findBicicleterosByGuardia(guardiaRut) {
 
   const bicicleterosActivos = asignados.filter(b => {
     // Si no hay hora configurada, usamos 14:00 por defecto
-    const horaCorte = b.horaCambioTurno || "14:00:00"; 
-    
+    const horaCorte = b.horaCambioTurno || "14:00:00";
+
     const esTurnoManana = horaActualStr < horaCorte;
-    
+
     if (esTurnoManana) {
-        // Si es temprano, lo muestro SOLO si soy el guardia de la mañana
-        return b.guardiaAM?.rut === guardiaRut;
+      // Si es temprano, lo muestro SOLO si soy el guardia de la mañana
+      return b.guardiaAM?.rut === guardiaRut;
     } else {
-        // Si es tarde, lo muestro SOLO si soy el guardia de la tarde
-        return b.guardiaPM?.rut === guardiaRut;
+      // Si es tarde, lo muestro SOLO si soy el guardia de la tarde
+      return b.guardiaPM?.rut === guardiaRut;
     }
   });
 
@@ -57,13 +57,18 @@ export async function aprobarIngreso(registroId, casilleroAsignado, guardiaRut) 
     // A. Buscar la solicitud
     const registro = await manager.findOne(RegistroUso, {
       where: { id: registroId },
-      relations: ["bicicletero", "bicicletero.guardiaAsignado"]
+      where: { id: registroId },
+      relations: ["bicicletero", "bicicletero.guardiaAM", "bicicletero.guardiaPM"]
     });
 
     if (!registro) throw new Error("Solicitud no encontrada");
 
-    // Seguridad: Verificar guardia
-    if (registro.bicicletero.guardiaAsignado?.rut !== guardiaRut) {
+    // Seguridad: Verificar guardia (AM o PM)
+    const esGuardiaAsignado =
+      registro.bicicletero.guardiaAM?.rut === guardiaRut ||
+      registro.bicicletero.guardiaPM?.rut === guardiaRut;
+
+    if (!esGuardiaAsignado) {
       throw new Error("No tienes permiso para gestionar este bicicletero.");
     }
 
@@ -98,7 +103,7 @@ export async function aprobarIngreso(registroId, casilleroAsignado, guardiaRut) 
     registro.estado = "activo";
     registro.casillero = casilleroAsignado;
     registro.fechaIngreso = new Date();
-    
+
     bicicletero.bicicletasGuardadas += 1;
 
     // --- CORRECCIÓN CLAVE AQUÍ ---
@@ -113,6 +118,7 @@ export async function rechazarIngreso(registroId, motivo) {
   const registro = await registroRepo.findOneBy({ id: registroId });
   if (!registro) throw new Error("Solicitud no encontrada");
   registro.estado = "rechazado";
+  registro.fechaSalida = new Date(); // Marcar como finalizado para que no aparezca en activos
   return await registroRepo.save(registro);
 }
 
@@ -180,8 +186,12 @@ export async function modificarUbicacion(registroId, nuevoCasillero) {
 
 // 8. Resumen Global
 export async function obtenerResumenGlobal(rutGuardia) {
+  // Buscar bicicleteros donde el usuario sea guardia AM o PM
   const bicicleteros = await bicicleteroRepo.find({
-    where: { guardiaAsignado: { rut: rutGuardia } },
+    where: [
+      { guardiaAM: { rut: rutGuardia } },
+      { guardiaPM: { rut: rutGuardia } }
+    ],
     select: ["id", "ubicacion"]
   });
 

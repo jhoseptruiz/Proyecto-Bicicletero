@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { getCheckinStatus, cancelCheckin } from '../../services/checkin.service';
 
-function StatusCheckin({ onScan }) {
-    const [status, setStatus] = useState(null);
+export default function StatusCheckin({ onScan }) {
+    const [statuses, setStatuses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         cargarStatus();
-        // Polling: Consultar estado cada 5 seg por si el guardia aprueba
         const intervalo = setInterval(cargarStatus, 5000);
         return () => clearInterval(intervalo);
     }, []);
@@ -16,7 +15,9 @@ function StatusCheckin({ onScan }) {
     const cargarStatus = async () => {
         try {
             const resp = await getCheckinStatus();
-            setStatus(resp.data);
+            // Asegurar que siempre sea un array
+            const data = Array.isArray(resp.data) ? resp.data : (resp.data ? [resp.data] : []);
+            setStatuses(data);
             setError(null);
         } catch (err) {
             console.error("Error status", err);
@@ -27,20 +28,21 @@ function StatusCheckin({ onScan }) {
     };
 
     const handleCancelar = async () => {
-        if (!window.confirm("¿Seguro que quieres cancelar?")) return;
+        if (!window.confirm("¿Seguro que quieres cancelar la solicitud en curso?")) return;
         try {
+            // Nota: El backend cancela la única solicitud pendiente/activa que encuentre para el usuario
             await cancelCheckin();
             alert("Solicitud cancelada exitosamente");
-            cargarStatus(); // Recargar inmediato
+            cargarStatus();
         } catch (error) {
             alert(error.message);
         }
     };
 
-    if (loading && !status) return <div>Cargando estado...</div>;
+    if (loading && statuses.length === 0) return <div>Cargando estado...</div>;
     if (error) return <div style={{ color: 'red' }}>{error}</div>;
 
-    if (!status || status.estado === 'SIN_SOLICITUD') {
+    if (statuses.length === 0) {
         return (
             <div className="status-content">
                 <div style={{ textAlign: 'center', padding: '20px' }}>
@@ -51,15 +53,29 @@ function StatusCheckin({ onScan }) {
         );
     }
 
-    // --- RENDERIZADO: DISEÑO DE TARJETA CONCISO ---
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            {statuses.map((status) => (
+                <StatusCard
+                    key={status.id}
+                    status={status}
+                    onScan={onScan}
+                    onCancel={handleCancelar}
+                />
+            ))}
+        </div>
+    );
+}
+
+function StatusCard({ status, onScan, onCancel }) {
     const bicicleta = status.bicicleta || {};
     const imagenBici = bicicleta.foto
         ? `http://localhost:3000${bicicleta.foto}`
-        : 'https://via.placeholder.com/150?text=Bici';
+        : 'https://placehold.co/150x150?text=Bici';
 
     // Validar si está en horario
     const isWithinHours = () => {
-        if (!status.horaApertura || !status.horaCierre) return true; // Si no hay horario definido, permitimos (fallback)
+        if (!status.horaApertura || !status.horaCierre) return true;
 
         const now = new Date();
         const currentHours = now.getHours();
@@ -76,6 +92,8 @@ function StatusCheckin({ onScan }) {
     };
 
     const canWithdraw = isWithinHours();
+    const isPendingOrRetiring = status.estado === 'pendiente' || status.estado === 'solicitando_retiro';
+    const isActive = ['activo', 'ingresado', 'INGRESADO'].includes(status.estado);
 
     return (
         <div className="status-card-compact" style={{
@@ -87,17 +105,16 @@ function StatusCheckin({ onScan }) {
             flexDirection: 'column',
             gap: '10px'
         }}>
-            {/* Cabecera: Estado y Bicicletero */}
+            {/* Cabecera: Estado */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className={`badge ${['activo', 'ingresado', 'INGRESADO'].includes(status.estado) ? 'operativo' : 'mantenimiento'}`}
+                <span className={`badge ${isActive ? 'operativo' : 'mantenimiento'}`}
                     style={{ fontSize: '0.85rem', padding: '4px 8px' }}>
                     {status.estado.replace('_', ' ').toUpperCase()}
                 </span>
             </div>
 
-            {/* Contenido Principal: Imagen + Datos Clave */}
+            {/* Contenido Principal */}
             <div style={{ display: 'flex', gap: '12px' }}>
-                {/* Imagen Cuadrada */}
                 <div style={{ width: '70px', height: '70px', flexShrink: 0 }}>
                     <img
                         src={imagenBici}
@@ -106,7 +123,6 @@ function StatusCheckin({ onScan }) {
                     />
                 </div>
 
-                {/* Detalles Concisos */}
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', fontSize: '0.9rem' }}>
                     <div style={{ fontWeight: 'bold', color: '#333' }}>
                         {bicicleta.marca} {bicicleta.modelo}
@@ -129,15 +145,15 @@ function StatusCheckin({ onScan }) {
 
             {/* Botones de Acción */}
             <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                {(status.estado === 'pendiente' || status.estado === 'solicitando_retiro') && (
-                    <button onClick={handleCancelar} className="btn-action-cancel" style={{ flex: 1, background: '#fee2e2', color: '#b91c1c', border: 'none', padding: '8px', borderRadius: '6px', fontWeight: '600' }}>
+                {isPendingOrRetiring && (
+                    <button onClick={onCancel} className="btn-action-cancel" style={{ flex: 1, background: '#fee2e2', color: '#b91c1c', border: 'none', padding: '8px', borderRadius: '6px', fontWeight: '600' }}>
                         Cancelar
                     </button>
                 )}
 
-                {['activo', 'ingresado', 'INGRESADO'].includes(status.estado) && (
+                {isActive && (
                     <button
-                        onClick={() => canWithdraw && onScan({ action: 'retirar' })}
+                        onClick={() => canWithdraw && onScan({ action: 'retirar', bicicletaId: bicicleta.id })}
                         className="btn-action-withdraw"
                         disabled={!canWithdraw}
                         style={{
@@ -165,4 +181,4 @@ function StatusCheckin({ onScan }) {
     );
 }
 
-export default StatusCheckin;
+

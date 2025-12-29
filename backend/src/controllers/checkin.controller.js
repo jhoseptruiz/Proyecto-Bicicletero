@@ -70,11 +70,12 @@ export async function checkStatus(req, res) {
         const rutAlumno = req.user.rut || req.user.sub;
         const status = await obtenerEstadoSolicitud(rutAlumno);
 
-        if (!status) {
-            return handleSuccess(res, 200, "Sin solicitud activa", { estado: "SIN_SOLICITUD" });
+        // Si es array vacío, es que no hay solicitudes
+        if (!status || status.length === 0) {
+            return handleSuccess(res, 200, "Sin solicitud activa", []);
         }
 
-        handleSuccess(res, 200, "Estado de solicitud recuperado", status);
+        handleSuccess(res, 200, "Estados de solicitud recuperados", status);
     } catch (error) {
         handleErrorServer(res, 500, "Error al verificar estado", error.message);
     }

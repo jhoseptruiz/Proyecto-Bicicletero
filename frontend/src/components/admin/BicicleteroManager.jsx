@@ -5,21 +5,20 @@ import { CrearBicicletero, ActualizarBicicletero, deleteBicicletero } from '../.
 import QRCode from 'qrcode';
 
 function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
+  // Estados
   const [filtroEstado, setFiltroEstado] = useState('todos');
-
-  // --- ESTADO PARA MODAL DE ERROR (POP UP) ---
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
 
-  // Estado Mapa 
+  // Mapa
   const [viewState, setViewState] = useState({
     longitude: -73.0134,
     latitude: -36.8222,
     zoom: 16
   });
   const [marcaLocalizacion, setMarcaLocalizacion] = useState({ lat: -36.8222, lng: -73.0134 });
-  const MAPBOX_TOKEN = "pk.eyJ1IjoibWlsZW5ja2FhIiwiYSI6ImNphamxxZDAzYjJxNTIza3B5OXZmcmk1cXMifQ.xW3QubyrM10uSbt08RlAPA";
+  const MAPBOX_TOKEN = "pk.eyJ1IjoibWlsZW5ja2FhIiwiYSI6ImNtamxxZDAzYjJxNTIza3B5OXZmcmk1cXMifQ.xW3QubyrM10uSbt08RlAPA";
 
-  // --- ESTADOS DEL FORMULARIO---
+  // Formulario
   const [editarId, setEditarId] = useState('');
   const [ubicacion, setUbicacion] = useState('');
   const [capacidad, setCapacidad] = useState(15);
@@ -27,12 +26,12 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
   const [horaApertura, setHoraApertura] = useState('07:00');
   const [horaCierre, setHoraCierre] = useState('21:00');
 
-  // estados para Turnos
-  const [guardiaAMId, setguardiaAMId] = useState('');
-  const [guardiaPMId, setguardiaPMId] = useState('');
+  // Turnos
+  const [guardiaAMId, setGuardiaAMId] = useState('');
+  const [guardiaPMId, setGuardiaPMId] = useState('');
   const [horaCambioTurno, setHoraCambioTurno] = useState('14:00');
 
-  // Estados QR
+  // QR
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrUrl, setQrUrl] = useState('');
   const [selectedBicicletero, setSelectedBicicletero] = useState(null);
@@ -86,13 +85,11 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
     setEstado('operativo');
     setHoraApertura('07:00');
     setHoraCierre('21:00');
-    // Reset Turnos
-    setguardiaAMId('');
-    setguardiaPMId('');
+    setGuardiaAMId('');
+    setGuardiaPMId('');
     setHoraCambioTurno('14:00');
   };
 
-  // --- HELPER PARA POP UP ERROR ---
   const showError = (msg) => {
     setErrorModal({ isOpen: true, message: msg });
   };
@@ -101,10 +98,8 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
     setErrorModal({ isOpen: false, message: '' });
   };
 
-  // --- MANEJADORES CON BLOQUEO LÓGICO ---
-
   const handleEditClick = (bicicletero) => {
-    // 1. BLOQUEO: Si hay bicis, mostramos Pop Up y detenemos
+    // Si hay bicis, mostramos Pop Up y detenemos
     if (bicicletero.bicicletasGuardadas > 0) {
       showError("No se pudo modificar porque el bicicletero está en uso.");
       return;
@@ -117,19 +112,16 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
     setHoraApertura(bicicletero.horaApertura);
     setHoraCierre(bicicletero.horaCierre);
 
-    // Cargar Turnos
-    setguardiaAMId(bicicletero.guardiaAM ? bicicletero.guardiaAM.rut : '');
-    setguardiaPMId(bicicletero.guardiaPM ? bicicletero.guardiaPM.rut : '');
+    setGuardiaAMId(bicicletero.guardiaAM ? bicicletero.guardiaAM.rut : '');
+    setGuardiaPMId(bicicletero.guardiaPM ? bicicletero.guardiaPM.rut : '');
     setHoraCambioTurno(bicicletero.horaCambioTurno || '14:00');
 
-    // Cargar posición en mapa
     if (bicicletero.latitud && bicicletero.longitud) {
       setMarcaLocalizacion({ lat: parseFloat(bicicletero.latitud), lng: parseFloat(bicicletero.longitud) });
     }
   };
 
   const handleDeleteBicicletero = async (bicicletero) => {
-    // 1. BLOQUEO: Si hay bicis, mostramos Pop Up y detenemos
     if (bicicletero.bicicletasGuardadas > 0) {
       showError("No se puede eliminar porque el bicicletero está en uso.");
       return;
@@ -148,6 +140,20 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Validaciones Frontend
+      if (!ubicacion.trim()) {
+        showError("La ubicación es obligatoria.");
+        return;
+      }
+      if (!/^[a-zA-Z0-9\s\.\-ñÑ]+$/.test(ubicacion)) {
+        showError("La ubicación contiene caracteres inválidos.");
+        return;
+      }
+      if (parseInt(capacidad, 10) <= 0) {
+        showError("La capacidad debe ser mayor a 0.");
+        return;
+      }
+
       const newData = {
         ubicacion,
         capacidad: parseInt(capacidad, 10),
@@ -156,7 +162,6 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
         horaCierre: horaCierre || null,
         latitud: marcaLocalizacion.lat,
         longitud: marcaLocalizacion.lng,
-        // Datos de Turnos
         guardiaAMId: guardiaAMId || null,
         guardiaPMId: guardiaPMId || null,
         horaCambioTurno
@@ -181,7 +186,6 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
     return b.estado === filtroEstado;
   });
 
-  // --- QR HANDLERS ---
   const handleVerQR = async (bicicletero) => {
     try {
       const qrData = JSON.stringify({
@@ -300,7 +304,6 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
               <small>(Dejar vacios para 24/7)</small>
             </div>
 
-            {/* SECCIÓN DE TURNOS Y GUARDIAS (Reemplaza al guardiaId simple) */}
             <div style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
               <h4 style={{ margin: '0 0 10px 0', color: '#666', fontSize: '0.9rem' }}>Asignación de Turnos</h4>
 
@@ -320,7 +323,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
                   <label style={{ fontSize: '0.85rem' }}>Guardia Mañana:</label>
-                  <select value={guardiaAMId} onChange={(e) => setguardiaAMId(e.target.value)} style={{ fontSize: '0.85rem' }}>
+                  <select value={guardiaAMId} onChange={(e) => setGuardiaAMId(e.target.value)} style={{ fontSize: '0.85rem' }}>
                     <option value="">(Sin asignar)</option>
                     {personalList.filter(p => p.role === 'guardia').map(g => (
                       <option key={g.rut} value={g.rut}>{g.nombre} {g.apellido}</option>
@@ -329,7 +332,7 @@ function BicicleteroManager({ bicicleterosList, personalList, onRefresh }) {
                 </div>
                 <div>
                   <label style={{ fontSize: '0.85rem' }}>Guardia Tarde:</label>
-                  <select value={guardiaPMId} onChange={(e) => setguardiaPMId(e.target.value)} style={{ fontSize: '0.85rem' }}>
+                  <select value={guardiaPMId} onChange={(e) => setGuardiaPMId(e.target.value)} style={{ fontSize: '0.85rem' }}>
                     <option value="">(Sin asignar)</option>
                     {personalList.filter(p => p.role === 'guardia').map(g => (
                       <option key={g.rut} value={g.rut}>{g.nombre} {g.apellido}</option>

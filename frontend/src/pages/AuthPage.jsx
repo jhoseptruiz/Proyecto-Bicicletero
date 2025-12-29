@@ -3,18 +3,18 @@
 import React, { useState, useRef, useEffect } from 'react'; // Importamos useRef y useEffect
 import { useNavigate } from 'react-router-dom';
 import { login, register } from '../services/auth.service.js';
-import './Auth.css'; 
+import './Auth.css';
 
 function AuthPage() {
   const [activeTab, setActiveTab] = useState('login');
   const navigate = useNavigate();
 
-  // --- Estados para Login ---
+  // Estados para Login
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-  
-  // --- Estados para Registro ---
+
+  // Estados para Registro
   const [regNombre, setRegNombre] = useState('');
   const [regApellido, setRegApellido] = useState('');
   const [regRut, setRegRut] = useState('');
@@ -23,7 +23,7 @@ function AuthPage() {
   const [regError, setRegError] = useState('');
   const [regSuccess, setRegSuccess] = useState('');
 
-  // --- LÓGICA DE ALTURA PARA EL FLIP ---
+  // Lógica de altura para el Flip
   const [formContainerHeight, setFormContainerHeight] = useState('auto');
   const loginFormRef = useRef(null);
   const registerFormRef = useRef(null);
@@ -37,9 +37,9 @@ function AuthPage() {
       height = registerFormRef.current?.scrollHeight;
     }
     // Añadimos un poco de padding (50px aprox = 2.5rem * 2)
-    if (height) setFormContainerHeight(`${height + 50}px`); 
+    if (height) setFormContainerHeight(`${height + 50}px`);
   }, [activeTab]);
-  // --- Fin de la lógica de altura ---
+
 
 
   const handleLoginSubmit = async (e) => {
@@ -75,13 +75,12 @@ function AuthPage() {
     }
   };
 
-  // --- Renderizado del Componente ---
   return (
     <div className="auth-page-container">
       {/* El .auth-card ahora solo contiene los botones */}
       <div className="auth-card">
-        
-        {/* --- PESTAÑAS (TABS) --- */}
+
+        {/* Tabs */}
         <div className="auth-tabs">
           <button
             className={`auth-tab-button ${activeTab === 'login' ? 'active' : ''}`}
@@ -98,17 +97,16 @@ function AuthPage() {
         </div>
       </div>
 
-      {/* --- CONTENEDOR DE FORMULARIOS (EL QUE GIRA) --- */}
+      {/* Contenedor Giratorio */}
       {/* Le pasamos la altura dinámica y la clase que activa el giro */}
-      <div 
+      <div
         className={`auth-forms-container ${activeTab === 'register' ? 'is-flipped' : ''}`}
-        style={{ height: formContainerHeight }} 
+        style={{ height: formContainerHeight }}
       >
-        
-        {/* --- FORMULARIO DE LOGIN (CARA FRONTAL) --- */}
-        <form 
+
+        <form
           ref={loginFormRef} // Añadimos la referencia
-          onSubmit={handleLoginSubmit} 
+          onSubmit={handleLoginSubmit}
           className="auth-form auth-form-front" // Clase para la cara frontal
         >
           <h2>Login Bicicleteros</h2>
@@ -136,14 +134,13 @@ function AuthPage() {
           {loginError && <p className="form-error">{loginError}</p>}
         </form>
 
-        {/* --- FORMULARIO DE REGISTRO (CARA TRASERA) --- */}
-        <form 
+        <form
           ref={registerFormRef} // Añadimos la referencia
-          onSubmit={handleRegisterSubmit} 
+          onSubmit={handleRegisterSubmit}
           className="auth-form auth-form-back" // Clase para la cara trasera
         >
           <h2>Registro de Usuario</h2>
-          <div className="form-group"> 
+          <div className="form-group">
             <label>RUT:</label>
             <input type="text" value={regRut} onChange={(e) => setRegRut(e.target.value)} className="form-input" placeholder="Ej: 12345678-9" required />
           </div>

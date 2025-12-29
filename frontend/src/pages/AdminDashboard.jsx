@@ -13,7 +13,7 @@ function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('bicicleteros');
 
-  // --- Estado Global de Datos ---
+  // Estado Global
   const [bicicleteros, setBicicleteros] = useState([]);
   const [personal, setPersonal] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -54,8 +54,7 @@ function AdminDashboard() {
   if (loading) return <div>Cargando panel...</div>;
   if (error) return <div style={{ color: 'red' }}>Error global: {error}</div>;
 
-  // --- Navegación Sidebar ---
-  // --- Navegación Sidebar ---
+  // Navegación Sidebar
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
   };

@@ -23,16 +23,18 @@ function ContenidoAlumno({ alIrAlPerfil }) {
         }
     }, []);
 
-    const [status, setStatus] = useState(null);
+    const [statuses, setStatuses] = useState([]);
 
     // Fetch status check for validations
     const verificarEstado = async () => {
         try {
             const { getCheckinStatus } = await import('../services/checkin.service');
             const resp = await getCheckinStatus();
-            setStatus(resp.data); // { estado: 'pendiente', ... }
+            const data = Array.isArray(resp.data) ? resp.data : (resp.data ? [resp.data] : []);
+            setStatuses(data);
         } catch (e) {
             console.error("Error validando estado para scanner:", e);
+            setStatuses([]);
         }
     };
 
@@ -44,13 +46,23 @@ function ContenidoAlumno({ alIrAlPerfil }) {
     }, []);
 
     const handleOpenScan = async (props = {}) => {
-        // Validación Preventiva (Frontend)
-        if (status) {
-            if (status.estado === 'pendiente') {
+        // Validación Preventiva (Frontend) - Solo bloqueamos si hay una solicitud PENDIENTE de aprobación/retiro
+        const solicitudEnProceso = statuses.find(s => ['pendiente', 'solicitando_retiro'].includes(s.estado));
+
+        // Excepción: Si 'props.action' es 'retirar' y viene con ID, permitimos abrir para esa bici (si no es la que está trabada)
+        // Pero por simplicidad, si hay algo pendiente, bloqueamos todo escaneo nuevo.
+        if (solicitudEnProceso) {
+            // Si la acción es retirar ESTA misma bici que está en 'solicitando_retiro', entonces NO bloqueamos (permitimos ver estado? No, el scanner es para INICIAR acción)
+            // Scanner se usa para: 
+            // 1. Ingresar (Bloqueado si hay pendiente)
+            // 2. Retirar (Bloqueado si hay pendiente DE OTRA bici).
+
+            // Si estoy solicitando retiro, ya escaneé. No necesito escanear de nuevo para "ver".
+            if (solicitudEnProceso.estado === 'pendiente') {
                 alert("⚠️ Ya tienes una solicitud pendiente. Espera a que el guardia la apruebe.");
                 return;
             }
-            if (status.estado === 'solicitando_retiro') {
+            if (solicitudEnProceso.estado === 'solicitando_retiro') {
                 alert("⚠️ Ya has solicitado el retiro. Dirígete a la salida.");
                 return;
             }
@@ -81,7 +93,9 @@ function ContenidoAlumno({ alIrAlPerfil }) {
         );
     }
 
-    const shouldShowScanner = status && ['SIN_SOLICITUD', 'INGRESADO', 'activo', 'ingresado'].includes(status.estado);
+    // Siempre mostrar el botón si no estamos en vista de escaneo, 
+    // la validación de bloqueo se hace al hacer click.
+    const shouldShowScanner = true;
 
     return (
         <div className="bicicleteros-layout fade-in">

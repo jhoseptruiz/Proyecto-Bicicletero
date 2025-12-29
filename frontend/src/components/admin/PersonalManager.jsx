@@ -3,13 +3,11 @@ import { createPersonal, updatePersonal, deletePersonal } from '../../services/u
 
 function PersonalManager({ personalList, onRefresh }) {
     const [filtroRol, setFiltroRol] = useState('todos');
-    
-    // --- ESTADO PARA MODAL DE ERROR ---
-    const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
 
+    const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // --- Estado Formulario Personal ---
+    // Formulario Personal
     const [editarPersonalRut, setEditarPersonalRut] = useState(null);
     const [pRut, setpRut] = useState('');
     const [pNombre, setpNombre] = useState('');
@@ -18,7 +16,7 @@ function PersonalManager({ personalList, onRefresh }) {
     const [pPassword, setpPassword] = useState('');
     const [pRole, setpRole] = useState('guardia');
 
-    // --- Helper Pop Up Error ---
+    // Helper Pop Up Error
     const showError = (msg) => {
         setErrorModal({ isOpen: true, message: msg });
     };
@@ -27,7 +25,7 @@ function PersonalManager({ personalList, onRefresh }) {
         setErrorModal({ isOpen: false, message: '' });
     };
 
-    // --- Lógica Personal ---
+    // Lógica Personal
     const resetFormularioPersonal = () => {
         setEditarPersonalRut(null);
         setpRut('');
@@ -41,8 +39,8 @@ function PersonalManager({ personalList, onRefresh }) {
     const handleEditPersonalClick = (usuario) => {
         // Validación Frontend (Bloqueo lógico actualizado a AM/PM)
         // Revisamos si tiene asignaciones en la mañana O en la tarde
-        const ocupado = (usuario.bicicleterosAM && usuario.bicicleterosAM.length > 0) || 
-                        (usuario.bicicleterosPM && usuario.bicicleterosPM.length > 0);
+        const ocupado = (usuario.bicicleterosAM && usuario.bicicleterosAM.length > 0) ||
+            (usuario.bicicleterosPM && usuario.bicicleterosPM.length > 0);
 
         if (ocupado) {
             showError("No se puede modificar un guardia que tiene bicicleteros asignados.");
@@ -89,7 +87,7 @@ function PersonalManager({ personalList, onRefresh }) {
             }
 
             resetFormularioPersonal();
-            onRefresh(); 
+            onRefresh();
         } catch (err) {
             showError(err.message || "Error al procesar solicitud");
         } finally {
@@ -99,8 +97,8 @@ function PersonalManager({ personalList, onRefresh }) {
 
     const handleDeletePersonal = async (usuario) => {
         // Validación Frontend (Bloqueo lógico actualizado a AM/PM)
-        const ocupado = (usuario.bicicleterosAM && usuario.bicicleterosAM.length > 0) || 
-                        (usuario.bicicleterosPM && usuario.bicicleterosPM.length > 0);
+        const ocupado = (usuario.bicicleterosAM && usuario.bicicleterosAM.length > 0) ||
+            (usuario.bicicleterosPM && usuario.bicicleterosPM.length > 0);
 
         if (ocupado) {
             showError("No se puede eliminar un guardia que tiene bicicleteros asignados.");
@@ -117,7 +115,7 @@ function PersonalManager({ personalList, onRefresh }) {
         try {
             await deletePersonal(usuario.rut);
             alert('Usuario eliminado');
-            onRefresh(); 
+            onRefresh();
         } catch (err) {
             showError(err.message || "Error al eliminar");
         }
@@ -179,7 +177,7 @@ function PersonalManager({ personalList, onRefresh }) {
                         <button
                             type="submit"
                             className="btn-primary"
-                            disabled={isSubmitting} 
+                            disabled={isSubmitting}
                         >
                             {isSubmitting ? 'Guardando...' : (editarPersonalRut ? 'Actualizar Personal' : 'Crear Personal')}
                         </button>
@@ -223,9 +221,9 @@ function PersonalManager({ personalList, onRefresh }) {
                         {personalFiltrado.length > 0 ? (
                             personalFiltrado.map(p => {
                                 // VERIFICAR SI TIENE ASIGNACIONES (AM o PM)
-                                const tieneAsignacion = (p.bicicleterosAM && p.bicicleterosAM.length > 0) || 
-                                                        (p.bicicleterosPM && p.bicicleterosPM.length > 0);
-                                
+                                const tieneAsignacion = (p.bicicleterosAM && p.bicicleterosAM.length > 0) ||
+                                    (p.bicicleterosPM && p.bicicleterosPM.length > 0);
+
                                 return (
                                     <tr key={p.rut}>
                                         <td>{p.rut}</td>
@@ -242,8 +240,8 @@ function PersonalManager({ personalList, onRefresh }) {
                                             </span>
                                         </td>
                                         <td>
-                                            <button 
-                                                className="btn-edit" 
+                                            <button
+                                                className="btn-edit"
                                                 onClick={() => handleEditPersonalClick(p)}
                                                 disabled={tieneAsignacion}
                                                 style={tieneAsignacion ? { opacity: 0.5, cursor: 'not-allowed', backgroundColor: '#ccc' } : {}}
@@ -251,9 +249,9 @@ function PersonalManager({ personalList, onRefresh }) {
                                             >
                                                 Editar
                                             </button>
-                                            
-                                            <button 
-                                                className="btn-delete" 
+
+                                            <button
+                                                className="btn-delete"
                                                 onClick={() => handleDeletePersonal(p)}
                                                 disabled={tieneAsignacion}
                                                 style={tieneAsignacion ? { marginLeft: '5px', opacity: 0.5, cursor: 'not-allowed', backgroundColor: '#ccc' } : { marginLeft: '5px' }}
@@ -272,12 +270,12 @@ function PersonalManager({ personalList, onRefresh }) {
                 </table>
             </div>
 
-            {/* --- MODAL DE ERROR (POP UP) --- */}
+            {/* Modal de Error */}
             {errorModal.isOpen && (
                 <div className="modal-overlay" onClick={closeError}>
                     <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', borderTop: '5px solid #e74c3c' }}>
                         <button className="btn-close" onClick={closeError}>×</button>
-                        
+
                         <div style={{ textAlign: 'center', padding: '20px 0' }}>
                             <div style={{ fontSize: '50px', marginBottom: '15px' }}>⚠️</div>
                             <h3 style={{ color: '#e74c3c', margin: '0 0 10px 0' }}>Acción Denegada</h3>
@@ -287,8 +285,8 @@ function PersonalManager({ personalList, onRefresh }) {
                         </div>
 
                         <div className="modal-actions">
-                            <button 
-                                className="btn-secondary" 
+                            <button
+                                className="btn-secondary"
                                 onClick={closeError}
                                 style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none' }}
                             >
